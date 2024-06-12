@@ -1,0 +1,54 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net35</TargetFramework>
+    <AssemblyName>SwordArtOffline</AssemblyName>
+    <Description>SAOArcade Tools</Description>
+    <Version>1.0.0</Version>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
+    <PackageReference Include="BepInEx.Core" Version="5.*" />
+    <PackageReference Include="BepInEx.PluginInfoProps" Version="1.*" />
+    <PackageReference Include="UnityEngine.Modules" Version="2017.4.22" IncludeAssets="compile" />
+  </ItemGroup>
+  
+  <ItemGroup Condition="'$(TargetFramework.TrimEnd(`0123456789`))' == 'net'">
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.2" PrivateAssets="all" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <Reference Include="Artdink">
+      <HintPath>L:\SDVX\sao\game\link_Data\Managed\Artdink.dll</HintPath>
+    </Reference>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>L:\SDVX\sao\game\link_Data\Managed\Assembly-CSharp-nstrip.dll</HintPath>
+    </Reference>
+    <Reference Include="Assembly-CSharp-firstpass">
+      <HintPath>L:\SDVX\sao\notice\NoticeScreen_Data\Managed\Assembly-CSharp-firstpass.dll</HintPath>
+      <Aliases>AssemblyNotice</Aliases>
+    </Reference>
+    <Reference Include="GssSite">
+      <HintPath>L:\SDVX\sao\game\link_Data\Managed\GssSite-nstrip.dll</HintPath>
+    </Reference>
+    <Reference Include="Photon3Unity3D">
+      <HintPath>L:\SDVX\sao\game\link_Data\Managed\Photon3Unity3D.dll</HintPath>
+    </Reference>
+    <Reference Include="TextMeshPro-2017.3-1.0.56-Runtime">
+      <HintPath>L:\SDVX\sao\game\link_Data\Managed\TextMeshPro-2017.3-1.0.56-Runtime.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.InputModule">
+      <HintPath>L:\SDVX\sao\game\link_Data\Managed\UnityEngine.InputModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.UI">
+      <HintPath>L:\SDVX\sao\game\link_Data\Managed\UnityEngine.UI.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="copy /Y bin\Debug\net35\SwordArtOffline.dll L:\SDVX\sao\game\BepInEx\plugins\&#xD;&#xA;copy /Y bin\Debug\net35\SwordArtOffline.dll L:\SDVX\sao\notice\BepInEx\plugins\&#xD;&#xA;copy /Y bin\Debug\net35\SwordArtOffline.dll L:\SDVX\sao\testmode\BepInEx\plugins\" />
+  </Target>
+</Project>
