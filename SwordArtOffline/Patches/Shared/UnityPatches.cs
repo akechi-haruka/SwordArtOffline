@@ -2,34 +2,29 @@
 using System.Diagnostics;
 using UnityEngine;
 
-namespace SwordArtOffline.Patches.Shared
-{
+namespace SwordArtOffline.Patches.Shared {
 
     extern alias AssemblyNotice;
 
-    public class UnityPatches
-    {
+    public class UnityPatches {
         public static int FakeTouchX { get; internal set; }
         public static int FakeTouchY { get; internal set; }
         public static int FakeFrames { get; internal set; }
 
         [HarmonyPrefix, HarmonyPatch(typeof(UnityEngine.Debug), "LogWarning", typeof(object))]
-        static bool LogWarning(object message)
-        {
+        static bool LogWarning(object message) {
             Plugin.Log.LogWarning("[Unity] " + message);
             return true;
         }
 
         [HarmonyPrefix, HarmonyPatch(typeof(UnityEngine.Debug), "LogError", typeof(object))]
-        static bool LogError(object message)
-        {
+        static bool LogError(object message) {
             Plugin.Log.LogWarning("[Unity] " + message);
             return true;
         }
 
         [HarmonyPrefix, HarmonyPatch(typeof(UnityEngine.Debug), "Log", typeof(object))]
-        static bool Log(object message)
-        {
+        static bool Log(object message) {
             Plugin.Log.LogInfo("[Unity] " + message);
             return true;
         }

@@ -99,15 +99,6 @@ namespace SwordArtOffline.Patches.Game {
             return false;
         }
 
-        /*[HarmonyPostfix, HarmonyPatch(typeof(GameManager), "IsOnline", MethodType.Getter)]
-        static void IsOnline() {
-            Plugin.Log.LogDebug("Flag = " + ServerDataManager.Instance.CurrentAppVersion);
-            Plugin.Log.LogDebug(GameManager.IsJig);
-            Plugin.Log.LogDebug(GameManager.IsAllNetAuth); // wat?
-            Plugin.Log.LogDebug(GameManager.IsGameServerAlive);
-            Plugin.Log.LogDebug(GameManager.IsHasUpdateData);
-        }*/
-
         [HarmonyPrefix, HarmonyPatch(typeof(GameManager), "initializeAmdaemonInfo")]
         static void initializeAmdaemonInfo() {
             Plugin.Log.LogDebug("INIT = " + GameManager.IsAllNetInit);
@@ -219,7 +210,7 @@ namespace SwordArtOffline.Patches.Game {
                     Plugin.Log.LogMessage("Connection error, retrying in " + wait + " seconds...");
                     do {
                         Thread.Sleep(1000);
-                    } while (!RetryNetworkFlag && wait --> 0);
+                    } while (!RetryNetworkFlag && wait-- > 0);
                 }
                 __result = __instance.connect(send_buf_size);
             }
@@ -268,6 +259,7 @@ namespace SwordArtOffline.Patches.Game {
             GameConnect.setTimeOutTime(20);
         }
 
+        // reimplement this entire thing
         [HarmonyPostfix, HarmonyPatch(typeof(SubSceneCtrl_Menu_MainMenu_Parent), "GashaCM", MethodType.Getter)]
         static void InitParentScene(SubSceneCtrl_Menu_MainMenu_Parent __instance) {
             Plugin.Log.LogDebug("InitParentScene (trigger on GashaCM_get)");
@@ -562,6 +554,7 @@ namespace SwordArtOffline.Patches.Game {
             }
         }
 
+        // cause matching server issues not to lock the game
         [HarmonyPrefix, HarmonyPatch(typeof(GameManager), "HandleException")]
         static bool HandleException(string logString, string stackTrace, LogType type) {
             if ((type == LogType.Exception || type == LogType.Error || type == LogType.Assert) && logString.IndexOf("Exception") > 0 && logString.IndexOf("ExitGames") < 0) {

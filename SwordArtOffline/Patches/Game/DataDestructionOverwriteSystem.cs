@@ -54,7 +54,9 @@ namespace SwordArtOffline.Patches.Game {
             }
             yui = GameObject.Find("RootObject/Canvas/cutin_boss/boss_cutin_matome/yui_pos_fuyuu");
             if (yui != null) {
-                UnityEngine.Object.Destroy(yui);
+                yui.transform.position = new Vector3(9999, 9999, 9999);
+                yui.SetActive(false);
+                //UnityEngine.Object.Destroy(yui);
             }
             yui = GameObject.Find("RootObject/Canvas/ResultMain/Bonus/Analyze/main/YuiChance/gasha_yuichance/yuichance_matome/yuichance_yui_matome/yuichance_yui_pos_fuyuu");
             if (yui != null) {

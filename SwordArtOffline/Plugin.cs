@@ -65,7 +65,7 @@ namespace SwordArtOffline
         public static ConfigEntry<bool> ConfigNetworkAutoRetry;
         public static ConfigEntry<int> ConfigNetworkAutoRetryDelay;
         public static ConfigEntry<bool> ConfigUIShowComboMeter;
-        public static ConfigEntry<bool> ConfigUIShowMinimap;
+        public static ConfigEntry<MinimapUILayout> ConfigUIShowMinimap;
         public static ConfigEntry<bool> ConfigUIShowComments;
         public static ConfigEntry<bool> ConfigUIShowDirectionalArrows;
         public static ConfigEntry<bool> ConfigUIMURDERYUI;
@@ -78,6 +78,7 @@ namespace SwordArtOffline
         public static ConfigEntry<AutoContinueMode> ConfigAutoContinueMode;
         public static ConfigEntry<bool> ConfigAllowTerminalSwitch;
         public static ConfigEntry<bool> ConfigReconnectUseDialogSystem;
+        public static ConfigEntry<bool> ConfigUIBonusStartsExpanded;
 
         public enum MouseButtonControl {
             Off, LeftMouseButton, RightMouseButton
@@ -85,6 +86,10 @@ namespace SwordArtOffline
 
         public enum AutoContinueMode {
             Off, ContinueIfFree, ContinueIfTicket, AlwaysContinue, NeverContinue
+        }
+
+        public enum MinimapUILayout {
+            Normal, HideMinimap, HideMinimapAndMoveBonus
         }
 
         public static String KeychipId;
@@ -152,10 +157,11 @@ namespace SwordArtOffline
             ConfigReconnectUseDialogSystem = Config.Bind("Network", "Use Ingame Dialogs for Reconnection", false, new ConfigDescription("(broken do not use) Uses ingame dialogs to display connection errors, otherwise uses BepInEx.MessageCenter.", null, new ConfigurationManagerAttributes { IsAdvanced = true }));
 
             ConfigUIShowComboMeter = Config.Bind("User Interface", "Show Combo Meter", true, "If disabled, the combo meter (that covers the minimap partially...) is hidden.");
-            ConfigUIShowMinimap = Config.Bind("User Interface", "Show Minimap", true, "If disabled, the minimap is hidden and you need to find your own way.");
+            ConfigUIShowMinimap = Config.Bind("User Interface", "Show Minimap", MinimapUILayout.Normal, "If disabled, the minimap is hidden and you need to find your own way. You can also move the bonus list to this position to save screen space.");
             ConfigUIShowComments = Config.Bind("User Interface", "Show Commentary", true, "If disabled, the character commentary on the left side during gameplay is hidden.");
             ConfigUIShowDirectionalArrows = Config.Bind("User Interface", "Show Directional Arrows", true, "If disabled, the giant red directional arrows (look, the GIANT COLLECTIBLE THAT YOU ABSOLUTELY DO NOT WANT TO MISS IS RIGHT HERE, DIRECTLY ON THE SCREEN) are hidden.");
             ConfigUIMURDERYUI = Config.Bind("User Interface", "Delete Yui", false, "Deleted.\n\n(Removes all Yui sprites and voice lines from gameplay)");
+            ConfigUIBonusStartsExpanded = Config.Bind("User Interface", "EXBonus Always Shown", false, "If enabled, the EX bonus list will be automatically shown on quest start.");
 
             ConfigTimeFreeze = Config.Bind("General", "Timer Freeze", false, new ConfigDescription("Freezes menu timers.", null, new ConfigurationManagerAttributes { IsAdvanced = true }));
             ConfigTimeFreeze = Config.Bind("General", "Timer Freeze", false, new ConfigDescription("Freezes menu timers.", null, new ConfigurationManagerAttributes { IsAdvanced = true }));
@@ -182,7 +188,6 @@ namespace SwordArtOffline
                 Harmony.CreateAndPatchAll(typeof(MatchingPatchesGame), "eu.haruka.gmg.sao.fixes.game.matching");
                 Harmony.CreateAndPatchAll(typeof(UIDeclutterPatchesGame), "eu.haruka.gmg.sao.fixes.game.uideclutter");
                 Harmony.CreateAndPatchAll(typeof(DataDestructionOverwriteSystem), "eu.haruka.gmg.sao.fixes.game.destroy");
-                Harmony.CreateAndPatchAll(typeof(VisualNovelPatchesGame), "eu.haruka.gmg.sao.fixes.game.utage");
                 BasePatchesGame.Initialize();
                 runGameUpdate = true;
             }
@@ -201,8 +206,8 @@ namespace SwordArtOffline
             Harmony.CreateAndPatchAll(typeof(IOPatches), "eu.haruka.gmg.sao.fixes.io");
             Harmony.CreateAndPatchAll(typeof(UnityPatches), "eu.haruka.gmg.sao.fixes.unity");
 
-            UnityEngine.Debug.s_Logger.logEnabled = true;
-            UnityEngine.Debug.unityLogger.logEnabled = true;
+            Debug.s_Logger.logEnabled = true;
+            Debug.unityLogger.logEnabled = true;
 
             WantsBootSatellite = !Environment.GetCommandLineArgs().Contains("-mod-swordartoffline-force-terminal");
             Logger.LogInfo("Booting Satellite? " + WantsBootSatellite);
@@ -284,7 +289,7 @@ namespace SwordArtOffline
             }
         }
 
-        private void UpdateGame() {
+        private void UpdateGame() { // this needs to be seperate otherwise there will be an assembly load exception in the testmenu
             if (ConfigButtonClearError.Value.IsDown()) {
                 ErrorUIManager.Instance.isPlaySoundSE = false;
                 ErrorUIManager.Instance.Hide();
@@ -294,7 +299,7 @@ namespace SwordArtOffline
         private void SimulateTouch(int x, int y) {
             UnityPatches.FakeTouchX = x;
             UnityPatches.FakeTouchY = y;
-            UnityPatches.FakeFrames = 2;
+            UnityPatches.FakeFrames = 2; // frame 1: touch down event, frame 2: touch up event
         }
 
         /*internal static CommonUI_MenuDialog ShowDialog(string message, int? timer, Action onClose) {

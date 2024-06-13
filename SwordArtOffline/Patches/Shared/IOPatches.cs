@@ -190,6 +190,5 @@ namespace SwordArtOffline.Patches.Shared {
             CurrentCharacter = 1;
         }
 
-
     }
 }
