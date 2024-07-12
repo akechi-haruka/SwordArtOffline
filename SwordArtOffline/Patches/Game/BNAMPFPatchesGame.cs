@@ -1,10 +1,20 @@
 ﻿using HarmonyLib;
 using LINK;
+using LINK.TestMode;
 using Mono.Cecil;
+using SwordArtOffline.Patches.Shared;
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Drawing;
+using System.IO;
 using System.Runtime.InteropServices;
+using System.Threading;
+using UnityEngine;
 using Utage;
+using static AssetBundles.Manager.Settings;
 using static LINK.bnAMPF;
+using Color = UnityEngine.Color;
 
 namespace SwordArtOffline.Patches.Game {
 
@@ -47,10 +57,11 @@ namespace SwordArtOffline.Patches.Game {
             return false;
         }
 
+        private static LeafPrinterStatus printerStatus = LeafPrinterStatus.OK;
         [HarmonyPatch(typeof(bnAMPF), "LeafPrinterGetStatus")]
         [HarmonyPrefix]
         static bool LeafPrinterGetStatus(ref LeafPrinterStatus __result) {
-            Plugin.Log.LogWarning("N/I: LeafPrinterGetStatus");
+            __result = printerStatus;
             return false;
         }
 
@@ -86,10 +97,13 @@ namespace SwordArtOffline.Patches.Game {
             return false;
         }
 
+        private static LeafPrinterPrintResult printResult = LeafPrinterPrintResult.OK;
+
         [HarmonyPatch(typeof(bnAMPF), "LeafPrinterGetPrintResult")]
         [HarmonyPrefix]
         static bool LeafPrinterGetPrintResult(ref LeafPrinterPrintResult __result) {
-            Plugin.Log.LogWarning("N/I: LeafPrinterGetPrintResult");
+            //Plugin.Log.LogWarning("N/I: LeafPrinterGetPrintResult");
+            __result = printResult;
             return false;
         }
 
@@ -121,25 +135,123 @@ namespace SwordArtOffline.Patches.Game {
             return false;
         }
 
+        private static Dictionary<LeafPrinterImageType, Texture2D> images = new Dictionary<LeafPrinterImageType, Texture2D>();
+
         [HarmonyPatch(typeof(bnAMPF), "LeafPrinterSetImage")]
         [HarmonyPrefix]
         static bool LeafPrinterSetImage(LeafPrinterSurface surface, LeafPrinterImageType type, int width, int height, IntPtr pixels, int pixels_size) {
-            Plugin.Log.LogWarning("N/I: LeafPrinterSetImage");
+            int bytesPerPixel = type == LeafPrinterImageType.Holo ? 1 : 3;
+            Plugin.Log.LogDebug("alloc " + (width * height * bytesPerPixel) + " pixels");
+            byte[] raw = new byte[width * height * bytesPerPixel];
+            Plugin.Log.LogDebug("copy from ptr");
+            Marshal.Copy(pixels, raw, 0, raw.Length);
+            Plugin.Log.LogDebug("alloc texture at "+width+"x"+height);
+            Texture2D tex = new Texture2D(width, height);
+            Plugin.Log.LogDebug("alloc "+(width*height)+" colors");
+            Color[] col = new Color[width * height];
+
+            Plugin.Log.LogDebug("filling");
+            for (int i = 0; i < height; i++) {
+                for (int j = 0; j < width; j++) {
+                    int num4 = (i * width + j) * bytesPerPixel;
+                    byte[] px = new byte[3];
+                    for (int k = 0; k < bytesPerPixel; k++) {
+                        px[k] = raw[num4 + k];
+                    }
+                    col[i * width + j] = new Color(px[0] / 255F, px[1] / 255F, px[2] / 255F);
+                }
+            }
+
+            Plugin.Log.LogDebug("set pixels to unity");
+            tex.SetPixels(col);
+            Plugin.Log.LogDebug("apply");
+            tex.Apply();
+            images[type] = tex;
+
             return false;
         }
 
         [HarmonyPatch(typeof(bnAMPF), "LeafPrinterClearImage")]
         [HarmonyPrefix]
         static bool LeafPrinterClearImage(LeafPrinterSurface surface, LeafPrinterImageType type) {
-            Plugin.Log.LogWarning("N/I: LeafPrinterClearImage");
+
+            images[type] = null;
+
             return false;
         }
 
         [HarmonyPatch(typeof(bnAMPF), "LeafPrinterStartPrint")]
         [HarmonyPrefix]
         static bool LeafPrinterStartPrint() {
-            Plugin.Log.LogWarning("N/I: LeafPrinterStartPrint");
+
+            printResult = LeafPrinterPrintResult.Busy;
+            printerStatus = LeafPrinterStatus.Busy;
+
+            new Thread(PrintExecutor).Start();
+            
             return false;
+        }
+
+        private static void PrintExecutor() {
+            PrintFile(images[LeafPrinterImageType.ColorRGB]);
+            PrintFile(images[LeafPrinterImageType.Holo]);
+
+            if (Plugin.ConfigPrinterUseHandler.Value && Plugin.ConfigPrinterHandler.Value != "") {
+                try {
+                    string exe = Plugin.ConfigPrinterHandler.Value;
+                    string cwd = new FileInfo(exe).Directory.FullName;
+                    Plugin.Log.LogInfo("Print invoking: " + exe + ", cwd: " + cwd);
+                    ProcessStartInfo psi = new ProcessStartInfo(exe, Plugin.ConfigPrinterHandlerArguments.Value) {
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        WindowStyle = ProcessWindowStyle.Hidden,
+                        WorkingDirectory = cwd
+                    };
+                    Process zebra = Process.Start(psi);
+                    if (!zebra.WaitForExit(60000)) {
+                        printResult = LeafPrinterPrintResult.Error;
+                        return;
+                    }
+                    Plugin.Log.LogInfo("Print invocation exit code: " + zebra.ExitCode);
+                    if (zebra.ExitCode == 0) {
+                        printResult = LeafPrinterPrintResult.OK;
+                        return;
+                    } else {
+                        printResult = LeafPrinterPrintResult.Error;
+                        return;
+                    }
+                } catch (Exception ex) {
+                    Plugin.Log.LogError("Print invoke failed: " + ex.Message);
+                } finally {
+                    printerStatus = LeafPrinterStatus.OK;
+                }
+            }
+
+            printerStatus = LeafPrinterStatus.OK;
+            printResult = LeafPrinterPrintResult.OK;
+        }
+
+        private static String PrintFile(Texture2D out_tex) {
+            if (out_tex == null) {
+                return null;
+            }
+            string dir = Plugin.ConfigPrinterDirectory.Value;
+            if (!Directory.Exists(dir)) {
+                Directory.CreateDirectory(dir);
+            }
+            string file_pre = dir + "\\" + "card_";
+            string file_full;
+            for (int i = 0; true; i++) {
+                file_full = file_pre + String.Format("{0:0000}", i) + ".png";
+                if (!File.Exists(file_full)) {
+                    break;
+                }
+            }
+            Plugin.Log.LogDebug("pix=" + out_tex.GetPixels32().Length);
+            Plugin.Log.LogDebug("size=" + out_tex.width + "x" + out_tex.height + "@" + out_tex.format);
+            byte[] pngbytes = out_tex.EncodeToPNG();
+            File.WriteAllBytes(file_full, pngbytes);
+            return file_full;
         }
 
         [HarmonyPatch(typeof(bnAMPF), "LeafPrinterAbortPrint")]
@@ -296,15 +408,10 @@ namespace SwordArtOffline.Patches.Game {
             return false;
         }
 
-        private static IntPtr keychip;
         [HarmonyPatch(typeof(bnAMPF), "USBDongleGetSerialNumber")]
         [HarmonyPrefix]
         static bool USBDongleGetSerialNumber(ref IntPtr __result) {
-            if (keychip == IntPtr.Zero) {
-                Plugin.Log.LogDebug("AMPF: Keychip=" + Plugin.KeychipId);
-                keychip = Marshal.StringToHGlobalUni(Plugin.KeychipId);
-            }
-            __result = keychip;
+            __result = Plugin.GetKeychipU();
             return false;
         }
 
@@ -339,7 +446,11 @@ namespace SwordArtOffline.Patches.Game {
         [HarmonyPatch(typeof(bnAMPF), "CreditGet")]
         [HarmonyPrefix]
         static bool CreditGet(ref int __result, CreditType type) {
-            //Plugin.Log.LogWarning("N/I: CreditGet");
+            if (type == CreditType.Coin) {
+                __result = Plugin.Coins;
+            } else {
+                __result = Plugin.Service;
+            }
             return false;
         }
 
@@ -380,7 +491,11 @@ namespace SwordArtOffline.Patches.Game {
         [HarmonyPatch(typeof(bnAMPF), "CreditUse")]
         [HarmonyPrefix]
         static bool CreditUse(ref bool __result, CreditType type, int count) {
-            Plugin.Log.LogWarning("N/I: CreditUse");
+            if (type == CreditType.Coin) {
+                Plugin.Coins -= count;
+            } else {
+                Plugin.Service -= count;
+            }
             return false;
         }
 
@@ -805,22 +920,43 @@ namespace SwordArtOffline.Patches.Game {
         [HarmonyPrefix]
         static bool SettingsGetBoolean(ref bool __result, string key, bool default_value) {
             //Plugin.Log.LogWarning("N/I: SettingsGetBoolean("+key+")");
-            __result = default_value;
+            ConfigService config = ConfigService.GetInstance();
+            if (key == SettingsKeyFreePlay) {
+                __result = config.saveCoin.freePlay;
+            } else if (key == SettingsKeyFreeOnceGasha) {
+                __result = true;
+            } else {
+                __result = default_value;
+            }
             return false;
         }
 
+        private static IntPtr closingTime;
         [HarmonyPatch(typeof(bnAMPF), "SettingGetClosingTime")]
         [HarmonyPrefix]
         static bool SettingGetClosingTime(ref IntPtr __result) {
-            Plugin.Log.LogWarning("N/I: SettingGetClosingTime");
+            if (closingTime == IntPtr.Zero) {
+                closingTime = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(SettingsClosingTime)));
+                var property = new SettingsClosingTime() {
+                    Type = SettingsClosingTimeType.None
+                };
+                Marshal.StructureToPtr(property, closingTime, false);
+            }
+            __result = closingTime;
             return false;
         }
 
         [HarmonyPatch(typeof(bnAMPF), "SettingsGetInteger")]
         [HarmonyPrefix]
         static bool SettingsGetInteger(ref int __result, string key, int default_value) {
-            Plugin.Log.LogWarning("N/I: SettingsGetInteger(" + key + ")");
-            __result = default_value;
+            ConfigService config = ConfigService.GetInstance();
+            if (key == SettingsKeyAttractVolume) {
+                __result = config.saveSound.atractVolume;
+            } else if (key == SettingsKeySoundVolume) {
+                __result = config.saveSound.gameVolume;
+            } else {
+                __result = default_value;
+            }
             return false;
         }
 

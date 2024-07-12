@@ -1,27 +1,22 @@
-﻿using BepInEx;
+﻿using AssetBundles.Manager;
+using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
-using GssSiteSystem;
 using HarmonyLib;
 using LINK;
 using LINK.UI;
-using Mono.Cecil.Cil;
 using SwordArtOffline.Patches.Game;
 using SwordArtOffline.Patches.Notice;
 using SwordArtOffline.Patches.Shared;
-using SwordArtOffline.Patches.Testmode;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Reflection.Emit;
 using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using UnityEngineInternal.Input;
 
-namespace SwordArtOffline
-{
+namespace SwordArtOffline {
 
     extern alias AssemblyNotice;
 
@@ -79,6 +74,15 @@ namespace SwordArtOffline
         public static ConfigEntry<bool> ConfigAllowTerminalSwitch;
         public static ConfigEntry<bool> ConfigReconnectUseDialogSystem;
         public static ConfigEntry<bool> ConfigUIBonusStartsExpanded;
+        public static ConfigEntry<string> ConfigPrinterDirectory;
+        public static ConfigEntry<string> ConfigPrinterHandler;
+        public static ConfigEntry<string> ConfigPrinterHandlerArguments;
+        public static ConfigEntry<bool> ConfigPrinterCleanOnStart;
+        public static ConfigEntry<bool> ConfigPrinterUseHandler;
+        public static ConfigEntry<string> ConfigForceCamera;
+        private static String keychip;
+        private static IntPtr keychipA = IntPtr.Zero;
+        private static IntPtr keychipU = IntPtr.Zero;
 
         public enum MouseButtonControl {
             Off, LeftMouseButton, RightMouseButton
@@ -92,8 +96,8 @@ namespace SwordArtOffline
             Normal, HideMinimap, HideMinimapAndMoveBonus
         }
 
-        public static String KeychipId;
         public static int Coins;
+        public static int Service;
         public static bool WantsBootSatellite = true;
         public static bool TestSwitchIsToggle;
         public static bool TestSwitchState;
@@ -111,72 +115,75 @@ namespace SwordArtOffline
             Log = Logger;
 
             #region Keybinding init
-            ConfigButton1 = Config.Bind(SEC_BUTTONS, "Button 1 (Attack or Switch Ch. 1)", new KeyboardShortcut(UnityEngine.KeyCode.A), "This button will attack with the first character, or switch to them if they are not in use.");
-            ConfigButton2 = Config.Bind(SEC_BUTTONS, "Button 2 (Attack or Switch Ch. 2)", new KeyboardShortcut(UnityEngine.KeyCode.S), "This button will attack with the second character, or switch to them if they are not in use.");
-            ConfigButton3 = Config.Bind(SEC_BUTTONS, "Button 3 (Attack or Switch Ch. 3)", new KeyboardShortcut(UnityEngine.KeyCode.D), "This button will attack with the third character, or switch to them if they are not in use.");
-            ConfigButton4 = Config.Bind(SEC_BUTTONS, "Button 4 (Dodge)", new KeyboardShortcut(UnityEngine.KeyCode.F), "Keyboard/Controller binding for button 4");
-            ConfigButton5 = Config.Bind(SEC_BUTTONS, "Button 5 (Block)", new KeyboardShortcut(UnityEngine.KeyCode.G), "Keyboard/Controller binding for button 5");
-            ConfigButton6 = Config.Bind(SEC_BUTTONS, "Button 6 (Unknown)", new KeyboardShortcut(UnityEngine.KeyCode.H), "Keyboard/Controller binding for button 6");
-            ConfigButtonAttackAll = Config.Bind(SEC_BUTTONS, "Attack Ch. All", new KeyboardShortcut(UnityEngine.KeyCode.Q), "This button will attack with any character that is currently in use and not switch.");
-            ConfigButtonService = Config.Bind(SEC_BUTTONS, "Service", new KeyboardShortcut(UnityEngine.KeyCode.F5), "Keyboard/Controller binding for service");
-            ConfigButtonTest = Config.Bind(SEC_BUTTONS, "Test", new KeyboardShortcut(UnityEngine.KeyCode.F6), "Keyboard/Controller binding for test");
-            ConfigButtonCoin = Config.Bind(SEC_BUTTONS, "Coin", new KeyboardShortcut(UnityEngine.KeyCode.F7), "Keyboard/Controller binding for coin");
-            ConfigButtonTestEnter = Config.Bind(SEC_BUTTONS, "Test Menu Enter", new KeyboardShortcut(UnityEngine.KeyCode.KeypadEnter), "Keyboard/Controller binding for test menu enter");
-            ConfigButtonTestUp = Config.Bind(SEC_BUTTONS, "Test Menu Up", new KeyboardShortcut(UnityEngine.KeyCode.Keypad8), "Keyboard/Controller binding for test menu up");
-            ConfigButtonTestDown = Config.Bind(SEC_BUTTONS, "Test Menu Down", new KeyboardShortcut(UnityEngine.KeyCode.Keypad2), "Keyboard/Controller binding for test menu down");
-            ConfigTouchTouch = Config.Bind(SEC_BUTTONS, "Touch: Hold Hands / Activate Mission", new KeyboardShortcut(UnityEngine.KeyCode.Space), "Keyboard/Controller binding for touching your main character or activating missions");
-            ConfigTouchSkill1 = Config.Bind(SEC_BUTTONS, "Touch: Skill 1", new KeyboardShortcut(UnityEngine.KeyCode.Alpha1), "Keyboard/Controller binding for activating skill 1");
-            ConfigTouchSkill2 = Config.Bind(SEC_BUTTONS, "Touch: Skill 2", new KeyboardShortcut(UnityEngine.KeyCode.Alpha2), "Keyboard/Controller binding for activating skill 2");
-            ConfigTouchSkill3 = Config.Bind(SEC_BUTTONS, "Touch: Skill 3", new KeyboardShortcut(UnityEngine.KeyCode.Alpha3), "Keyboard/Controller binding for activating skill 3");
-            ConfigTouchSkill4 = Config.Bind(SEC_BUTTONS, "Touch: Skill 4", new KeyboardShortcut(UnityEngine.KeyCode.Alpha4), "Keyboard/Controller binding for activating skill 4");
-            ConfigTouchSkill5 = Config.Bind(SEC_BUTTONS, "Touch: Skill 5", new KeyboardShortcut(UnityEngine.KeyCode.Alpha5), "Keyboard/Controller binding for activating skill 5");
-            ConfigButtonClearError = Config.Bind(SEC_BUTTONS, "Clear Error", new KeyboardShortcut(UnityEngine.KeyCode.F11), new ConfigDescription("For development only", null, new ConfigurationManagerAttributes() { IsAdvanced = true }));
+            ConfigButton1 = Config.Bind(SEC_BUTTONS, "Button 1 (Attack or Switch Ch. 1)", new KeyboardShortcut(KeyCode.A), "This button will attack with the first character, or switch to them if they are not in use.");
+            ConfigButton2 = Config.Bind(SEC_BUTTONS, "Button 2 (Attack or Switch Ch. 2)", new KeyboardShortcut(KeyCode.S), "This button will attack with the second character, or switch to them if they are not in use.");
+            ConfigButton3 = Config.Bind(SEC_BUTTONS, "Button 3 (Attack or Switch Ch. 3)", new KeyboardShortcut(KeyCode.D), "This button will attack with the third character, or switch to them if they are not in use.");
+            ConfigButton4 = Config.Bind(SEC_BUTTONS, "Button 4 (Dodge)", new KeyboardShortcut(KeyCode.F), "Keyboard/Controller binding for button 4");
+            ConfigButton5 = Config.Bind(SEC_BUTTONS, "Button 5 (Block)", new KeyboardShortcut(KeyCode.G), "Keyboard/Controller binding for button 5");
+            ConfigButton6 = Config.Bind(SEC_BUTTONS, "Button 6 (Unknown)", new KeyboardShortcut(KeyCode.H), "Keyboard/Controller binding for button 6");
+            ConfigButtonAttackAll = Config.Bind(SEC_BUTTONS, "Attack Ch. All", new KeyboardShortcut(KeyCode.Q), "This button will attack with any character that is currently in use and not switch.");
+            ConfigButtonService = Config.Bind(SEC_BUTTONS, "Service", new KeyboardShortcut(KeyCode.F5), "Keyboard/Controller binding for service");
+            ConfigButtonTest = Config.Bind(SEC_BUTTONS, "Test", new KeyboardShortcut(KeyCode.F6), "Keyboard/Controller binding for test");
+            ConfigButtonCoin = Config.Bind(SEC_BUTTONS, "Coin", new KeyboardShortcut(KeyCode.F7), "Keyboard/Controller binding for coin");
+            ConfigButtonTestEnter = Config.Bind(SEC_BUTTONS, "Test Menu Enter", new KeyboardShortcut(KeyCode.KeypadEnter), "Keyboard/Controller binding for test menu enter");
+            ConfigButtonTestUp = Config.Bind(SEC_BUTTONS, "Test Menu Up", new KeyboardShortcut(KeyCode.Keypad8), "Keyboard/Controller binding for test menu up");
+            ConfigButtonTestDown = Config.Bind(SEC_BUTTONS, "Test Menu Down", new KeyboardShortcut(KeyCode.Keypad2), "Keyboard/Controller binding for test menu down");
+            ConfigTouchTouch = Config.Bind(SEC_BUTTONS, "Touch: Hold Hands / Activate Mission", new KeyboardShortcut(KeyCode.Space), "Keyboard/Controller binding for touching your main character or activating missions");
+            ConfigTouchSkill1 = Config.Bind(SEC_BUTTONS, "Touch: Skill 1", new KeyboardShortcut(KeyCode.Alpha1), "Keyboard/Controller binding for activating skill 1");
+            ConfigTouchSkill2 = Config.Bind(SEC_BUTTONS, "Touch: Skill 2", new KeyboardShortcut(KeyCode.Alpha2), "Keyboard/Controller binding for activating skill 2");
+            ConfigTouchSkill3 = Config.Bind(SEC_BUTTONS, "Touch: Skill 3", new KeyboardShortcut(KeyCode.Alpha3), "Keyboard/Controller binding for activating skill 3");
+            ConfigTouchSkill4 = Config.Bind(SEC_BUTTONS, "Touch: Skill 4", new KeyboardShortcut(KeyCode.Alpha4), "Keyboard/Controller binding for activating skill 4");
+            ConfigTouchSkill5 = Config.Bind(SEC_BUTTONS, "Touch: Skill 5", new KeyboardShortcut(KeyCode.Alpha5), "Keyboard/Controller binding for activating skill 5");
+            ConfigButtonClearError = Config.Bind(SEC_BUTTONS, "Clear Error", new KeyboardShortcut(KeyCode.F11), new ConfigDescription("For development only, expect things to go wrong when pressing this.", null, new ConfigurationManagerAttributes() { IsAdvanced = true }));
 
-            ConfigButtonAnalogUp = Config.Bind(SEC_BUTTONS, "Analog: Up", new KeyboardShortcut(UnityEngine.KeyCode.UpArrow), "Keyboard/Controller binding for analog up");
-            ConfigButtonAnalogRight = Config.Bind(SEC_BUTTONS, "Analog: Right", new KeyboardShortcut(UnityEngine.KeyCode.RightArrow), "Keyboard/Controller binding for analog right");
-            ConfigButtonAnalogDown = Config.Bind(SEC_BUTTONS, "Analog: Down", new KeyboardShortcut(UnityEngine.KeyCode.DownArrow), "Keyboard/Controller binding for analog down");
-            ConfigButtonAnalogLeft = Config.Bind(SEC_BUTTONS, "Analog: Left", new KeyboardShortcut(UnityEngine.KeyCode.LeftArrow), "Keyboard/Controller binding for analog left");
-            ConfigButtonScanCard = Config.Bind(SEC_BUTTONS, "Scan Card", new KeyboardShortcut(UnityEngine.KeyCode.Backspace), "Keyboard/Controller binding for scanning Aime card");
+            ConfigButtonAnalogUp = Config.Bind(SEC_BUTTONS, "Analog: Up", new KeyboardShortcut(KeyCode.UpArrow), "Keyboard/Controller binding for analog up");
+            ConfigButtonAnalogRight = Config.Bind(SEC_BUTTONS, "Analog: Right", new KeyboardShortcut(KeyCode.RightArrow), "Keyboard/Controller binding for analog right");
+            ConfigButtonAnalogDown = Config.Bind(SEC_BUTTONS, "Analog: Down", new KeyboardShortcut(KeyCode.DownArrow), "Keyboard/Controller binding for analog down");
+            ConfigButtonAnalogLeft = Config.Bind(SEC_BUTTONS, "Analog: Left", new KeyboardShortcut(KeyCode.LeftArrow), "Keyboard/Controller binding for analog left");
+            ConfigButtonScanCard = Config.Bind(SEC_BUTTONS, "Scan Card", new KeyboardShortcut(KeyCode.Backspace), "Keyboard/Controller binding for scanning Aime card");
 
             ConfigControlAnalogStick = Config.Bind(SEC_BUTTONS, "Use Control Stick Movement", false, "Use a control stick of a connected controller for movement rather than the analog bindings.");
-            ConfigControlMouse = Config.Bind(SEC_BUTTONS, "Use Mouse Movement", MouseButtonControl.Off, "Use the mouse for movement.");
+            ConfigControlMouse = Config.Bind(SEC_BUTTONS, "Use Mouse Movement", MouseButtonControl.Off, "Use the mouse for movement. The center point is the middle of the screen.");
             ConfigMouseRadiusWidth = Config.Bind(SEC_BUTTONS, "Use Mouse Movement: Control Radius", 300, new ConfigDescription("The size in pixels of the virtual control stick created by the mouse. If your mouse is that amount of pixels away from the screen center, maximum stick tilt is achieved.", new AcceptableValueRange<int>(1, 1000), new ConfigurationManagerAttributes() { IsAdvanced = true }));
             #endregion
 
             CardID = Config.Bind("Card", "Access Code", "0000000000000000", "Aime access code of your card");
             ConfigNetworkEncryption = Config.Bind("Network", "Encryption", false, "Enable network encryption again if your server requires it");
             ConfigNetworkMatchingIP = Config.Bind("Network", "Matching Server IP", "", "Set the matching server IP");
-            ConfigPhotonLogging = Config.Bind("Network", "Matching Server Logging", false, new ConfigDescription("Photon Server Logging", null, new ConfigurationManagerAttributes { IsAdvanced = true }));
-            ConfigMoveToFrontOnStart = Config.Bind("General", "Move to front on start", true, "Moves the game window in the foreground on startup");
+            ConfigPhotonLogging = Config.Bind("Network", "Matching Server Logging", false, new ConfigDescription("Photon Server packet logging, only useful for debugging issues with the photon emulator", null, new ConfigurationManagerAttributes { IsAdvanced = true }));
+            ConfigMoveToFrontOnStart = Config.Bind("General", "Move to front on start", true, "Moves the game window to the foreground on startup");
             ConfigShowCursor = Config.Bind("General", "Show Mouse Cursor", true, "Shows the mouse cursor. Disable if using touchscreen.");
 
 
-            ConfigButtonRetryNetworkImmediately = Config.Bind(SEC_BUTTONS, "Immediate Network Retry", new KeyboardShortcut(UnityEngine.KeyCode.Keypad0), new ConfigDescription("If Auto-Retry Delay is 0, use this key to retry network connection", null, new ConfigurationManagerAttributes { IsAdvanced = true }));
-            ConfigNetworkAutoRetry = Config.Bind("Network", "Auto-Retry", true, new ConfigDescription("Automatically re-attempt network connections instead of throwing an error and stopping game operation.", null, new ConfigurationManagerAttributes { IsAdvanced = true }));
-            ConfigNetworkAutoRetryDelay = Config.Bind("Network", "Auto-Retry Delay", 15, new ConfigDescription("Time (in seconds) until a failed network connection is reattempted. Set to 99 for manual reconnection.", new AcceptableValueRange<int>(5, 99), new ConfigurationManagerAttributes { IsAdvanced = true }));
-            ConfigReconnectUseDialogSystem = Config.Bind("Network", "Use Ingame Dialogs for Reconnection", false, new ConfigDescription("(broken do not use) Uses ingame dialogs to display connection errors, otherwise uses BepInEx.MessageCenter.", null, new ConfigurationManagerAttributes { IsAdvanced = true }));
+            ConfigButtonRetryNetworkImmediately = Config.Bind(SEC_BUTTONS, "Immediate Network Retry", new KeyboardShortcut(KeyCode.Keypad0), new ConfigDescription("If Auto-Retry Delay is 0, use this key to retry network connection", null, new ConfigurationManagerAttributes { IsAdvanced = true }));
+            ConfigNetworkAutoRetry = Config.Bind("Network", "Enable Network Retry", true, new ConfigDescription("Retry failed network connections instead of throwing an error and stopping game operation.", null, new ConfigurationManagerAttributes { IsAdvanced = true }));
+            ConfigNetworkAutoRetryDelay = Config.Bind("Network", "Auto-Retry Delay", 59, new ConfigDescription("Time (in seconds) until a failed network connection is reattempted. Set to 99 for manual reconnection.", new AcceptableValueRange<int>(5, 99), new ConfigurationManagerAttributes { IsAdvanced = true }));
+            ConfigReconnectUseDialogSystem = Config.Bind("Network", "Use Ingame Dialogs", true, "Uses ingame dialogs to display connection errors, otherwise uses BepInEx.MessageCenter.");
 
             ConfigUIShowComboMeter = Config.Bind("User Interface", "Show Combo Meter", true, "If disabled, the combo meter (that covers the minimap partially...) is hidden.");
-            ConfigUIShowMinimap = Config.Bind("User Interface", "Show Minimap", MinimapUILayout.Normal, "If disabled, the minimap is hidden and you need to find your own way. You can also move the bonus list to this position to save screen space.");
+            ConfigUIShowMinimap = Config.Bind("User Interface", "UI Layout / Minimap", MinimapUILayout.Normal, "If disabled, the minimap is hidden and you need to find your own way. You can also move the bonus list to this position to save screen space.");
             ConfigUIShowComments = Config.Bind("User Interface", "Show Commentary", true, "If disabled, the character commentary on the left side during gameplay is hidden.");
             ConfigUIShowDirectionalArrows = Config.Bind("User Interface", "Show Directional Arrows", true, "If disabled, the giant red directional arrows (look, the GIANT COLLECTIBLE THAT YOU ABSOLUTELY DO NOT WANT TO MISS IS RIGHT HERE, DIRECTLY ON THE SCREEN) are hidden.");
-            ConfigUIMURDERYUI = Config.Bind("User Interface", "Delete Yui", false, "Deleted.\n\n(Removes all Yui sprites and voice lines from gameplay)");
-            ConfigUIBonusStartsExpanded = Config.Bind("User Interface", "EXBonus Always Shown", false, "If enabled, the EX bonus list will be automatically shown on quest start.");
+            ConfigUIMURDERYUI = Config.Bind("User Interface", "Delete Yui", false, "Did you know who ruined the anime before Oberon? Yui.\n\n(Removes all Yui sprites and voice lines from gameplay)");
+            ConfigUIBonusStartsExpanded = Config.Bind("User Interface", "EXBonus Always Shown", false, "If enabled, the EX bonus list will be automatically expanded on quest start.");
 
             ConfigTimeFreeze = Config.Bind("General", "Timer Freeze", false, new ConfigDescription("Freezes menu timers.", null, new ConfigurationManagerAttributes { IsAdvanced = true }));
-            ConfigTimeFreeze = Config.Bind("General", "Timer Freeze", false, new ConfigDescription("Freezes menu timers.", null, new ConfigurationManagerAttributes { IsAdvanced = true }));
-            ConfigRepeatMenuSections = Config.Bind("General", "Repeated Menu Access", false, "Allows you to repeatedly enter sections in the menu menu, such as the shop or the customization menu. Also disables confirmation dialogs.");
+            ConfigRepeatMenuSections = Config.Bind("General", "Repeated Menu Access", true, "Allows you to repeatedly enter sections in the menu menu without playing a mission inbetween, such as the shop or the customization menu. Also disables confirmation dialogs.");
             ConfigTimeExtend = Config.Bind("General", "Timer Extension", false, "Increases main menu time limits.");
-            ConfigAutoContinueMode = Config.Bind("General", "Auto-Continue", AutoContinueMode.ContinueIfFree, "Automatically continues if you die.");
-            ConfigAllowTerminalSwitch = Config.Bind("General", "Terminal/Station Switcher", true, "If selecting NO on the LOG OUT prompt, gives an option to switch between terminal/station.");
+            ConfigAutoContinueMode = Config.Bind("General", "Auto-Continue", AutoContinueMode.Off, "Automatically continues if you die.");
+            ConfigForceCamera = Config.Bind("General", "Force Camera", "", "Forces a specific camera name to be used. This can be used to ignore virtual cameras. Leave blank to disable.");
+
+            ConfigAllowTerminalSwitch = Config.Bind("Terminal", "Terminal/Station Switcher", true, "If selecting NO on the LOG OUT prompt, gives an option to switch between terminal/station.");
+            ConfigPrinterDirectory = Config.Bind("Terminal", "Printer Directory", "../nvram/print", "The directory where printed cards are written to");
+            ConfigPrinterUseHandler = Config.Bind("Terminal", "Printer Handler", false, "Uses the specified printer handler to print.");
+            ConfigPrinterHandler = Config.Bind("Terminal", "Printer Handler: Executable", "../ZebraSpooler.exe", "The name of an executable that is executed after printing");
+            ConfigPrinterHandlerArguments = Config.Bind("Terminal", "Printer Handler: Executable Arguments", "nvram/print", "The arguments passed to the printer handler executable.");
+            ConfigPrinterCleanOnStart = Config.Bind("Terminal", "Clean Printer Directory On Start", false, "If enabled, the contents of the printer directory will be emptied on start.");
+            ConfigPrinterCleanOnStart = Config.Bind("Terminal", "Print Holo Layer", true, "If enabled, the holo layer will also be saved as a seperate file.");
 
 
             string exe = Environment.CurrentDirectory.Split('\\').Last();
             Logger.LogDebug("Game = " + exe);
-
-            if (exe != "testmode") {
-                LoadKeychipFromIni();
-            }
 
             if (exe == "game") {
                 TestSwitchIsToggle = true;
@@ -188,18 +195,20 @@ namespace SwordArtOffline
                 Harmony.CreateAndPatchAll(typeof(MatchingPatchesGame), "eu.haruka.gmg.sao.fixes.game.matching");
                 Harmony.CreateAndPatchAll(typeof(UIDeclutterPatchesGame), "eu.haruka.gmg.sao.fixes.game.uideclutter");
                 Harmony.CreateAndPatchAll(typeof(DataDestructionOverwriteSystem), "eu.haruka.gmg.sao.fixes.game.destroy");
+                Harmony.CreateAndPatchAll(typeof(DebugPatchesGame), "eu.haruka.gmg.sao.fixes.game.debug");
+                Harmony.CreateAndPatchAll(typeof(CameraPatchesGame), "eu.haruka.gmg.sao.fixes.game.camera");
                 BasePatchesGame.Initialize();
                 runGameUpdate = true;
             }
             if (exe == "notice") {
                 TestSwitchIsToggle = true;
                 Harmony.CreateAndPatchAll(typeof(TerminalDecicderPatch), "eu.haruka.gmg.sao.fixes.notice.terminal");
-                Harmony.CreateAndPatchAll(typeof(KeychipPatchesNotice), "eu.haruka.gmg.sao.fixes.notice.keychip");
+                Harmony.CreateAndPatchAll(typeof(KeychipPatchesNoticeAndTest), "eu.haruka.gmg.sao.fixes.notice.keychip");
                 Harmony.CreateAndPatchAll(typeof(CardPatchesNotice), "eu.haruka.gmg.sao.fixes.notice.bngrw");
                 Harmony.CreateAndPatchAll(typeof(BNAMPFPatchesNotice), "eu.haruka.gmg.sao.fixes.notice.oomph");
             }
             if (exe == "testmode") {
-                Harmony.CreateAndPatchAll(typeof(KeychipPatchesTestmode), "eu.haruka.gmg.sao.fixes.test.keychip");
+                Harmony.CreateAndPatchAll(typeof(KeychipPatchesNoticeAndTest), "eu.haruka.gmg.sao.fixes.notice.keychip");
                 TestSwitchIsToggle = true;
                 TestSwitchState = true;
             }
@@ -213,6 +222,15 @@ namespace SwordArtOffline
             Logger.LogInfo("Booting Satellite? " + WantsBootSatellite);
 
             SceneManager.activeSceneChanged += SceneManager_activeSceneChanged;
+            
+            if (ConfigPrinterCleanOnStart.Value) {
+                if (Directory.Exists(ConfigPrinterDirectory.Value)) {
+                    Directory.Delete(ConfigPrinterDirectory.Value, true);
+                }
+            }
+            if (!Directory.Exists(ConfigPrinterDirectory.Value)) {
+                Directory.CreateDirectory(ConfigPrinterDirectory.Value);
+            }
 
             Logger.LogInfo($"{PluginInfo.PLUGIN_GUID} is loaded!");
         }
@@ -230,16 +248,12 @@ namespace SwordArtOffline
             }
         }
 
-        private void LoadKeychipFromIni() {
-            INIParser ini = new INIParser();
-            ini.Open("../AMCUS/WritableConfig.ini");
-            KeychipId = ini.ReadValue("RuntimeConfig", "serialID", "282513041234");
-            Log.LogDebug("Keychip ID from INI: " + KeychipId);
-        }
-
         public void Update() {
             if (ConfigButtonCoin.Value.IsDown()) {
                 Coins++;
+            }
+            if (ConfigButtonService.Value.IsDown()) {
+                Service++;
             }
             if (ConfigShowCursor.Value && !Cursor.visible) {
                 Cursor.visible = true;
@@ -302,48 +316,152 @@ namespace SwordArtOffline
             UnityPatches.FakeFrames = 2; // frame 1: touch down event, frame 2: touch up event
         }
 
-        /*internal static CommonUI_MenuDialog ShowDialog(string message, int? timer, Action onClose) {
+        internal static void ShowDialog(string message, int? timer, bool isYesNo, Action<bool> onClose) {
             Log.LogDebug("ShowDialog: " + message);
-            CommonUI_MenuDialog menuDialog = new CommonUI_MenuDialog();
-            instance.StartCoroutine(ShowDialogCo(message, timer, onClose, menuDialog));
-            return menuDialog;
+            instance.StartCoroutine(ShowDialogCo(message, timer, isYesNo, onClose));
         }
 
-        private static IEnumerator<object> ShowDialogCo(string message, int? timer, Action onClose, CommonUI_MenuDialog menuDialog) {
+        
+        private static IEnumerator<object> ShowDialogCo(string message, int? timer, bool isYesNo, Action<bool> onClose) {
             Log.LogDebug("ShowDialog: Instantiating");
-            while (menuDialog.IsInstantiating()) {
-                yield return null;
+
+            if (isYesNo) {
+                message += "<size=0%>";
             }
-            if (!SceneManager.GetSceneByName("SubScene_UI_MenuDialog").isLoaded) {
-                Log.LogDebug("ShowDialog: Load Scene");
-                AssetManager.Scene.Load("SubScene_UI_MenuDialog", true, true);
-                while (!SceneManager.GetSceneByName("SubScene_UI_MenuDialog").isLoaded) {
+
+            bool? isEnd = null;
+
+            while (!SceneManager.GetSceneByName("SubScene_UI_MenuDialog").isLoaded) {
+                while (AssetBundleManager.AssetBundleManifestObject == null) {
+                    //Log.LogDebug("NOT ASSETBUNDLE");
                     yield return null;
                 }
-                Log.LogDebug("ShowDialog: Loaded");
-            }
-            MenuUISubSceneCtrl menuUISubSceneCtrl = MenuUIManager.Instance.GetMenuUISubSceneCtrl("SubScene_UI_MenuDialog");
-            createMenuUI(menuUISubSceneCtrl, ref menuDialog, null);
-            menuDialog.DialogDisplay("DIALOG_COMMON_ERROR_CODE", delegate { onClose?.Invoke(); }, delegate { onClose?.Invoke(); }, false, timer ?? 0, timer != null ? MenuUITime.TimeType.Generic : MenuUITime.TimeType.NULL, new object[] { message }, false);
-            while (menuDialog.IsInstantiating()) {
+                MenuUIManager.Instance.AddScene("SubScene_UI_MenuDialog");
+                //Log.LogDebug("NOT LOADED");
                 yield return null;
             }
-            menuDialog.SetDisplay(true);
-            yield break;
+
+            CommonUI_MenuDialog dlg = MenuUIManager.Instance.GetDialog();
+            if (dlg == null) {
+                Log.LogError("CommonUI_MenuDialog is null!");
+            }
+
+            string[] dialogKeys = (!isYesNo ? new string[] { "DIALOG_SWORDARTOFFLINE_CUSTOM_MESSAGE", "DIALOGN_ERROR_UNABLE_TO_PLAY_01" } : new string[] { "CHECK_SWORDARTOFFLINE_CUSTOM_CHOICE", "CHECK_SHOP_USE_EVENT_ITEM" });
+
+            string dialogKey = dialogKeys[dialogKeys.Length - 1];
+            foreach (string dialog in dialogKeys) {
+                dialogKey = dialog;
+                if (dlg.dialogDataList.ContainsKey(dialogKey)) {
+                    break;
+                }
+            }
+
+            if (!dlg.dialogDataList.ContainsKey(dialogKey)) {
+                Log.LogError("Can't display custom dialog, UI table is not yet loaded!");
+                Log.LogError("Text was: " + message);
+                yield break;
+            }
+
+            bool hasLoadingBlocker = false;
+            if (LoadingUIManager.HasInstance() && LoadingUIManager.Instance.m_Connecting.activeSelf) {
+                Log.LogDebug("Getting rid of loading UI");
+                hasLoadingBlocker = true;
+                LoadingUIManager.Instance.Hide();
+            }
+            int countOfBlockers = MenuUIManager.Instance.m_BlockerStack.Count;
+            MenuUIManager.Instance.ClearUIBlocker();
+
+
+            dlg.SetDisplay(true);
+
+            Log.LogDebug("ShowDialogCo: " + dialogKey);
+            if (isYesNo) {
+                dlg.DialogDisplay(dialogKey, delegate {
+                    isEnd = true;
+                }, delegate {
+                    isEnd = false;
+                }, false, timer.GetValueOrDefault(-1), timer != null ? MenuUITime.TimeType.Generic : MenuUITime.TimeType.NULL, new object[] { message, message, message, message }, true);
+            } else {
+                dlg.DialogDisplay(dialogKey, delegate {
+                    isEnd = true;
+                }, timer.GetValueOrDefault(-1), timer.HasValue ? MenuUITime.TimeType.Generic : MenuUITime.TimeType.NULL, new object[] { message }, true);
+            }
+            
+            while (isEnd == null) {
+                if (BasePatchesGame.RetryNetworkFlag) {
+                    dlg.CloseRequest();
+                }
+                yield return null;
+            }
+
+            onClose(isEnd.Value);
+
+            if (hasLoadingBlocker) {
+                Log.LogDebug("Restoring loading blocker");
+                LoadingUIManager.Instance.Show();
+            }
+            Log.LogDebug("Restoring "+countOfBlockers+" other blocker(s)");
+            for (int i = 0; i < countOfBlockers; i++) {
+                MenuUIManager.Instance.PushUIBlocker();
+            }
+
+            yield return null;
         }
 
-        private static void createMenuUI<T>(MenuUISubSceneCtrl childScene, ref T createUI, Action init = null) where T : CommonUI_baseControl {
-            if (childScene != null) {
-                createUI = childScene.GetMenuParts<T>();
-                if (createUI != null) {
-                    createUI.InitGameobject();
-                    init?.Invoke();
-                } else {
-                    Log.LogError("createMenuUI: createUI is null");
-                }
-            } else {
-                Log.LogError("createMenuUI: childScene is null");
+        public static string GetKeychip() {
+            if (keychip == null) {
+                InitKeychip();
             }
-        }*/
+            return keychip;
+        }
+
+        public static IntPtr GetKeychipA() {
+            if (keychipA == IntPtr.Zero) {
+                InitKeychip();
+            }
+            return keychipA;
+        }
+
+        public static IntPtr GetKeychipU() {
+            if (keychipU == IntPtr.Zero) {
+                InitKeychip();
+            }
+            return keychipU;
+        }
+
+        private static void InitKeychip() {
+            const string DUMMY_ID = "000000000000";
+            string id;
+            Plugin.Log.LogInfo("Loading keychip...");
+            try {
+                IniFile i = new IniFile("F:\\WritableConfig.ini");
+                id = i.Read("serialID", "RuntimeConfig");
+                if (id == "") {
+                    id = DUMMY_ID;
+                }
+                Plugin.Log.LogInfo("Keychip = " + id);
+                string text2 = id.Substring(0, 4);
+                string text3 = id.Substring(4, 1);
+                string text4 = id.Substring(5, 1);
+                string text5 = id.Substring(6, 2);
+                if (text2 != "2825") {
+                    Plugin.Log.LogError("Invalid keychip! (Game ID)");
+                } else if (text5 != "04" && text5 != "05") {
+                    Plugin.Log.LogError("Invalid keychip! (Model ID)");
+                }
+                if (text3 != "1") {
+                    Plugin.Log.LogError("Invalid keychip! (Region ID)");
+                }
+                if (text4 != "3" && text4 != "4" && text4 != "5") {
+                    Plugin.Log.LogError("Invalid keychip! (Charge Mode)");
+                }
+            } catch (Exception ex) {
+                Plugin.Log.LogError("Keychip retrieval failed: " + ex);
+                id = DUMMY_ID;
+            }
+            keychip = id;
+            keychipA = Marshal.StringToHGlobalAnsi(id);
+            keychipU = Marshal.StringToHGlobalUni(id);
+        }
     }
 }

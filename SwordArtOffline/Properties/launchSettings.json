@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "SwordArtOffline": {
+      "commandName": "Project",
+      "commandLineArgs": "GMG_FIRST_CODE first.png"
+    }
+  }
+}

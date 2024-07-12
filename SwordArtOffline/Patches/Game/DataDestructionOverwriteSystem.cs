@@ -70,6 +70,10 @@ namespace SwordArtOffline.Patches.Game {
             if (yui != null) {
                 UnityEngine.Object.Destroy(yui);
             }
+            yui = GameObject.Find("RootObject/Canvas/GashaProduction/gasha_yuichance/yuichance_matome/yuichance_yui_matome/yuichance_yui_pos_fuyuu/yuichance_yui_pos");
+            if (yui != null) {
+                UnityEngine.Object.Destroy(yui);
+            }
             // 
         }
 
@@ -151,6 +155,13 @@ namespace SwordArtOffline.Patches.Game {
 
         [HarmonyPostfix, HarmonyPatch(typeof(QuestVsManager), "LotRandomBonus")]
         static void LotRandomBonus() {
+            if (Plugin.ConfigUIMURDERYUI.Value) {
+                MurderYui();
+            }
+        }
+
+        [HarmonyPostfix, HarmonyPatch(typeof(CommonUI_GashaProduction.RemainingLogWindow), "YuiChance")]
+        static void YuiChance() {
             if (Plugin.ConfigUIMURDERYUI.Value) {
                 MurderYui();
             }

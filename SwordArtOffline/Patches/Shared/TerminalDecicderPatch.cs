@@ -1,4 +1,6 @@
 ﻿using HarmonyLib;
+using LINK;
+using LINK.UI;
 using System;
 
 namespace SwordArtOffline.Patches.Shared {

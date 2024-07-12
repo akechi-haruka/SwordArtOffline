@@ -4,6 +4,7 @@ using LINK;
 using LINK.Battle;
 using System;
 using System.Linq;
+using System.Runtime.InteropServices;
 using UnityEngine;
 
 namespace SwordArtOffline.Patches.Shared {
@@ -165,7 +166,7 @@ namespace SwordArtOffline.Patches.Shared {
 
         [HarmonyPrefix, HarmonyPatch(typeof(BnamPeripheral), "GetService")]
         static bool GetService(BnamPeripheral __instance, ref ushort __result) {
-            __result = 0;
+            __result = (ushort)Plugin.Service;
             return false;
         }
 
@@ -177,6 +178,7 @@ namespace SwordArtOffline.Patches.Shared {
 
         [HarmonyPrefix, HarmonyPatch(typeof(BnamPeripheral), "ClearService")]
         static bool ClearService(BnamPeripheral __instance) {
+            Plugin.Service = 0;
             return false;
         }
 

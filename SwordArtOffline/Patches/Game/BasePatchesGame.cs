@@ -10,6 +10,7 @@ using LINK.UI;
 using SwordArtOffline.NetworkEx;
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Net;
@@ -22,10 +23,11 @@ namespace SwordArtOffline.Patches.Game {
 
     extern alias AssemblyNotice;
     using static bnAMUpdater;
+    using static GssSiteSystem.GameConnect;
 
     public class BasePatchesGame {
         public static bool RetryNetworkFlag { get; internal set; }
-        private static CommonUI_MenuDialog LoadingDialog { get; set; }
+        //private static CommonUI_MenuDialog LoadingDialog { get; set; }
 
         [HarmonyPrefix, HarmonyPatch(typeof(Win32Methods), "SetTopmostWindow")]
         static bool SetTopmostWindow(IntPtr hWnd, bool topmost) {
@@ -181,23 +183,26 @@ namespace SwordArtOffline.Patches.Game {
             if (gssProtocolBase == null) {
                 gssProtocolBase = new GameConnect.GssProtocolBase((GAMECONNECT_CMDID)65535);
             }
-            gssProtocolBase._error = error;
+            if (!(gssProtocolBase is GssProtocolError)) {
+                gssProtocolBase._error = error;
+            }
             __result = gssProtocolBase;
             return false;
         }
 
         [HarmonyPostfix, HarmonyPatch(typeof(GameConnect.GssProtocolBase), "connect", typeof(int))]
         static void Connect(ref GameConnect.GssProtocolBase __result, GameConnect.GssProtocolBase __instance, int send_buf_size) {
-            if (__result._error != GameConnectError.SUCCESS && Plugin.ConfigNetworkAutoRetry.Value) {
+            if (!(__result is GssProtocolError) && __result._error != GameConnectError.SUCCESS && Plugin.ConfigNetworkAutoRetry.Value) {
+                bool isAutoRetry = Plugin.ConfigNetworkAutoRetryDelay.Value < 99;
                 if (Plugin.ConfigReconnectUseDialogSystem.Value) {
                     RetryNetworkFlag = false;
-                    /*Plugin.ShowDialog("A connection error has ocurred.<br>" + __instance._cmd_id + "<br>" + __instance._error, Plugin.ConfigNetworkAutoRetryDelay.Value, () => {
+                    Plugin.ShowDialog("A connection error has ocurred.<br>" + __result._cmd_id + "<br>" + __result._error + "<br><br><color=orange>" + (isAutoRetry ? "Retrying..." : "Press OK to retry."), Plugin.ConfigNetworkAutoRetryDelay.Value >= 99 ? null : Plugin.ConfigNetworkAutoRetryDelay.Value, false, (ret) => {
                         RetryNetworkFlag = true;
-                    });*/
+                    });
                     do {
                         Thread.Sleep(1000);
                     } while (!RetryNetworkFlag);
-                } else if (Plugin.ConfigNetworkAutoRetryDelay.Value >= 99) {
+                } else if (!isAutoRetry) {
                     RetryNetworkFlag = false;
                     Plugin.Log.LogMessage("Connection error, retrying when " + Plugin.ConfigButtonRetryNetworkImmediately.Value.MainKey + " is pressed...");
                     do {
@@ -206,6 +211,7 @@ namespace SwordArtOffline.Patches.Game {
                     RetryNetworkFlag = false;
                     Plugin.Log.LogMessage("Key detected, retrying...");
                 } else {
+                    RetryNetworkFlag = false;
                     int wait = Plugin.ConfigNetworkAutoRetryDelay.Value;
                     Plugin.Log.LogMessage("Connection error, retrying in " + wait + " seconds...");
                     do {
@@ -257,6 +263,8 @@ namespace SwordArtOffline.Patches.Game {
         internal static void Initialize() {
             // this needs to be moved to a class that's not loaded in testmode
             GameConnect.setTimeOutTime(20);
+            // this needs to be initialized explicitely otherwise the terminal dies
+            BnamPeripheral.GetInstance().boardName = "NBGI.SwordArtOffline I/O Emu";
         }
 
         // reimplement this entire thing
@@ -499,7 +507,7 @@ namespace SwordArtOffline.Patches.Game {
                     ((GetMasterDataProtocolBase)protocol).SetupResponseData();
                 }
             }
-            LoadingDialog?.Hide();
+            //LoadingDialog?.Hide();
             if (LoadingUIManager.HasInstance()) {
                 LoadingUIManager.Instance.Hide();
             }
@@ -594,6 +602,53 @@ namespace SwordArtOffline.Patches.Game {
                 unitByFormation.unitMove.Rotate(vector, 0f);
             }
             return false;
+        }
+
+        [HarmonyPostfix, HarmonyPatch(typeof(MenuUIManager), "RequestAndWait")]
+        static IEnumerator RequestAndWait(IEnumerator __result, params Func<NetworkManageComponent>[] requestfuncs) {
+
+            if (LoadingUIManager.HasInstance()) {
+                ShowLoading();
+            }
+
+            // Run original enumerator code
+            while (__result.MoveNext())
+                yield return __result.Current;
+
+            if (LoadingUIManager.HasInstance()) {
+                HideLoading();
+            }
+
+            yield return __result.Current;
+        }
+
+        private static void ShowLoading() {
+            if (loadingUIFadeCoroutine != null) {
+                LoadingUIManager.Instance.StopCoroutine(loadingUIFadeCoroutine);
+            }
+            LoadingUIManager.Instance.Show();
+        }
+
+        private static void HideLoading() {
+            if (loadingUIFadeCoroutine != null) {
+                LoadingUIManager.Instance.StopCoroutine(loadingUIFadeCoroutine);
+            }
+            loadingUIFadeCoroutine = LoadingUIManager.Instance.StartCoroutine(LoadingUIFadeOut());
+        }
+
+        private static Coroutine loadingUIFadeCoroutine;
+
+        private static IEnumerator LoadingUIFadeOut() {
+            yield return new WaitForSeconds(0.5F);
+            LoadingUIManager.Instance.Hide();
+        }
+
+        [HarmonyPostfix, HarmonyPatch(typeof(MenuDialogConfirmation), "Init")]
+        static void Init(MenuDialogConfirmation __instance, StaticDialogUIData dialogData, UnityAction _yes, UnityAction _no, UnityAction[] _ex, bool _isEndYes, float _dialogTime, MenuUITime.TimeType _backUpTimeType, string _seName, UnityAction _deletePointer, object[] argument = null, bool textFormat = false) {
+            if (_dialogTime < 0) {
+                MenuUIManager.Instance.SetLimitTime(MenuUITime.TimeType.Generic, 0);
+                MenuUIManager.Instance.StopTimerControl();
+            }
         }
     }
 }
