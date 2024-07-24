@@ -162,6 +162,7 @@ namespace SwordArtOffline.Patches.Notice {
         [HarmonyPrefix, HarmonyPatch(typeof(AssemblyNotice::LINK.bnReader), "AimeCancelTask")]
         static bool AimeCancelTask(ref bool __result, int index) {
             Plugin.Log.LogDebug("BNGRW.AimeCancelTask");
+            Plugin.Aime?.ClearCard();
             __result = true;
             return false;
         }

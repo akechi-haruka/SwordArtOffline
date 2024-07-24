@@ -849,7 +849,5 @@ namespace SwordArtOffline.Patches.Notice {
             return false;
         }
 
-
-
     }
 }

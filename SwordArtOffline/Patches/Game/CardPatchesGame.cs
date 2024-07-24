@@ -1,4 +1,5 @@
 ﻿using HarmonyLib;
+using Haruka.Arcade.SEGA835Lib.Devices.Card._837_15396;
 using LINK;
 using System;
 using System.Globalization;
@@ -15,6 +16,9 @@ namespace SwordArtOffline.Patches.Game {
         static bool Initialize(ref bool __result, string mac_addr) {
             Plugin.Log.LogInfo("BNGRW Initialize");
             __result = true;
+            if (Plugin.Aime != null) {
+                __result = Plugin.AimeConnected;
+            }
             return false;
         }
 
@@ -61,6 +65,9 @@ namespace SwordArtOffline.Patches.Game {
         static bool IsReaderTaskEnd(ref bool __result, int index = 0) {
             //Plugin.Log.LogDebug("BNGRW.IsReaderTaskEnd");
             __result = Plugin.ConfigButtonScanCard.Value.IsPressed();
+            if (Plugin.Aime != null) {
+                __result = Plugin.Aime.HasDetectedCard() || !Plugin.Aime.IsPolling();
+            }
             return false;
         }
 
@@ -152,6 +159,12 @@ namespace SwordArtOffline.Patches.Game {
         static bool AimeDetectCard(ref bool __result, int index) {
             Plugin.Log.LogDebug("BNGRW.AimeDetectCard");
             __result = true;
+            if (Plugin.Aime != null) {
+                EMoneyUILinkIntegration.SetCardReaderBlocked(true);
+                Plugin.Aime.LEDSetColor(255, 255, 255);
+                Plugin.Aime.RadioOn(RadioOnType.Both);
+                __result = Plugin.Aime.StartPolling() == Haruka.Arcade.SEGA835Lib.Devices.DeviceStatus.OK;
+            }
             return false;
         }
 
@@ -166,6 +179,12 @@ namespace SwordArtOffline.Patches.Game {
         static bool AimeCancelTask(ref bool __result, int index) {
             Plugin.Log.LogDebug("BNGRW.AimeCancelTask");
             __result = true;
+            if (Plugin.Aime != null) {
+                EMoneyUILinkIntegration.SetCardReaderBlocked(false);
+                __result = Plugin.Aime.StopPolling() == Haruka.Arcade.SEGA835Lib.Devices.DeviceStatus.OK;
+                Plugin.Aime.LEDSetColor(0, 0, 0);
+                Plugin.Aime.ClearCard();
+            }
             return false;
         }
 
@@ -187,7 +206,7 @@ namespace SwordArtOffline.Patches.Game {
         static bool AimeGetCardReaderProperty(ref bool __result, int index, IntPtr prop) {
             //Plugin.Log.LogDebug("BNGRW.AimeGetCardReaderProperty");
             var property = new bnReader.AimeCardReaderProperty() {
-                bConnect = 1,
+                bConnect = (byte)(Plugin.Aime == null || Plugin.AimeConnected ? 1 : 0),
                 bHasLedBoard = 1,
                 generation = 1,
                 wszFirmwareVersion = "EMULATOR",
@@ -200,12 +219,35 @@ namespace SwordArtOffline.Patches.Game {
             return false;
         }
 
+        public static byte[] ConvertHexStringToByteArray(string hexString) {
+            if (hexString.Length % 2 != 0) {
+                throw new ArgumentException(String.Format(CultureInfo.InvariantCulture, "The binary key cannot have an odd number of digits: {0}", hexString));
+            }
+
+            byte[] data = new byte[hexString.Length / 2];
+            for (int index = 0; index < data.Length; index++) {
+                string byteValue = hexString.Substring(index * 2, 2);
+                data[index] = byte.Parse(byteValue, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+            }
+
+            return data;
+        }
+
         [HarmonyPrefix, HarmonyPatch(typeof(bnReader), "AimeGetNfcChipProperty")]
         static bool AimeGetNfcChipProperty(ref bool __result, int index, IntPtr prop) {
             Plugin.Log.LogDebug("BNGRW.AimeGetNfcChipProperty");
-            byte[] bytes = Encoding.ASCII.GetBytes(Plugin.CardID.Value);
+            byte[] bytes;
+            if (Plugin.Aime != null) {
+                if (!Plugin.Aime.HasDetectedCard()) {
+                    __result = false;
+                    return false;
+                }
+                bytes = Plugin.Aime.GetCardUID();
+            } else {
+                bytes = ConvertHexStringToByteArray(Plugin.CardID.Value);
+            }
             byte[] chipid = new byte[16];
-            Array.Copy(bytes, chipid, 16);
+            Array.Copy(bytes, chipid, bytes.Length);
             var property = new bnReader.AimeNfcChipProperty() {
                 bMobile = 0,
                 chipId = chipid,
@@ -218,16 +260,27 @@ namespace SwordArtOffline.Patches.Game {
         [HarmonyPrefix, HarmonyPatch(typeof(bnReader), "AimeGetAccessCode")]
         static bool AimeGetAccessCode(ref bool __result, int index, IntPtr code) {
             Plugin.Log.LogDebug("BNGRW.AimeGetAccessCode");
-            byte[] accesscodeBytes = new byte[10];
-            for (int i = 0; i < Plugin.CardID.Value.Length && i < accesscodeBytes.Length * 2; i += 2) {
-                accesscodeBytes[i / 2] = Byte.Parse(Plugin.CardID.Value.Substring(i, 2), NumberStyles.HexNumber);
+            if (Plugin.Aime != null) {
+                __result = Plugin.Aime.HasDetectedCard();
+                if (__result) {
+                    var accesscode = new bnReader.AimeAccessCode {
+                        bValid = 1,
+                        data = Plugin.Aime.GetCardUID()
+                    };
+                    Marshal.StructureToPtr(accesscode, code, false);
+                }
+            } else {
+                byte[] accesscodeBytes = new byte[10];
+                for (int i = 0; i < Plugin.CardID.Value.Length && i < accesscodeBytes.Length * 2; i += 2) {
+                    accesscodeBytes[i / 2] = Byte.Parse(Plugin.CardID.Value.Substring(i, 2), NumberStyles.HexNumber);
+                }
+                var accesscode = new bnReader.AimeAccessCode {
+                    bValid = 1,
+                    data = accesscodeBytes
+                };
+                Marshal.StructureToPtr(accesscode, code, false);
+                __result = true;
             }
-            var accesscode = new bnReader.AimeAccessCode {
-                bValid = 1,
-                data = accesscodeBytes
-            };
-            Marshal.StructureToPtr(accesscode, code, false);
-            __result = true;
             return false;
         }
 

@@ -1,5 +1,8 @@
-﻿using BepInEx.Configuration;
+﻿using Artdink.CsvRead;
+using BepInEx.Configuration;
 using HarmonyLib;
+using Haruka.Arcade.SEGA835Lib.Debugging;
+using Haruka.Arcade.SEGA835Lib.Devices.IO;
 using LINK;
 using LINK.Battle;
 using System;
@@ -13,7 +16,7 @@ namespace SwordArtOffline.Patches.Shared {
 
     public class IOPatches {
 
-        private static int CurrentCharacter = 1;
+        internal static int CurrentCharacter = 1;
 
         // To prevent BepInEx's keyboard locking we kinda need to do this
         [HarmonyPatch(typeof(KeyboardShortcut), "ModifierKeyTest")]
@@ -26,6 +29,11 @@ namespace SwordArtOffline.Patches.Shared {
         [HarmonyPrefix, HarmonyPatch(typeof(BnamPeripheral), "Initialize")]
         static bool Initialize(BnamPeripheral __instance) {
             __instance.errCode = BnamPeripheral.ErrorCodeSio.ERR_NONE;
+            if (Plugin.Io4 != null) {
+                if (!Plugin.Io4.IsConnected() || !Plugin.IoConnected) {
+                    __instance.errCode = BnamPeripheral.ErrorCodeSio.ERR_NO_DEVICE;
+                }
+            }
             __instance.firstTime = true;
             __instance.boardName = "NBGI.SwordArtOffline I/O Emu";
             Plugin.Log.LogInfo("I/O initialized");
@@ -41,7 +49,7 @@ namespace SwordArtOffline.Patches.Shared {
 
         [HarmonyPrefix, HarmonyPatch(typeof(BnamPeripheral), "Update")]
         static bool Update(BnamPeripheral __instance, ref int __result) {
-            __instance.comm_stat = true;
+            __instance.comm_stat = Plugin.Io4 != null ? Plugin.IoConnected : true;
             __instance.sw_bak = __instance.sw_now;
             __instance.sw_now = 0;
             if (Plugin.ConfigButton1.Value.IsPressed() || (CurrentCharacter == 1 && Plugin.ConfigButtonAttackAll.Value.IsPressed())) {
@@ -87,14 +95,35 @@ namespace SwordArtOffline.Patches.Shared {
             __instance.sw_on = (__instance.sw_now ^ __instance.sw_bak) & __instance.sw_now;
             __instance.sw_off = (__instance.sw_now ^ __instance.sw_bak) & __instance.sw_bak;
             __result = 0;
+
+            __instance.LEDTask();
+            __instance.SetLEDDirect(__instance.lockGOUT, (byte)((!__instance.coinLock) ? 1 : 0));
+
             return false;
+        }
+
+        private static float map(float x, float in_min, float in_max, float out_min, float out_max) {
+            return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
         }
 
         [HarmonyPrefix, HarmonyPatch(typeof(BnamPeripheral), "GetAxis")]
         static bool GetAxis(BnamPeripheral __instance, ref float __result, string axisName) {
             __result = 0F;
             if (axisName == "Horizontal") {
-                if (Plugin.ConfigControlMouse.Value != Plugin.MouseButtonControl.Off) {
+                if (Plugin.IoConnected && Plugin.IoReport.HasValue) {
+                    float deadzone = Plugin.ConfigIO4StickDeadzone.Value / 100F;
+                    unsafe {
+                        JVSUSBReportIn report = Plugin.IoReport.Value;
+                        float v = report.adcs[Plugin.ConfigIO4AxisX.Value];
+                        if (Plugin.ConfigIO4AxisXInvert.Value) {
+                            v = ushort.MaxValue - v;
+                        }
+                        __result = map(v, Plugin.ConfigIO4AxisXMin.Value, Plugin.ConfigIO4AxisXMax.Value, -1, 1);
+                        if (__result >= -deadzone && __result <= deadzone) {
+                            __result = 0;
+                        }
+                    }
+                } else if (Plugin.ConfigControlMouse.Value != Plugin.MouseButtonControl.Off) {
                     if (Input.GetMouseButton(Plugin.ConfigControlMouse.Value == Plugin.MouseButtonControl.LeftMouseButton ? 0 : 1)) {
                         __result = Mathf.Clamp((Input.mousePosition.x - Screen.width / 2) / Plugin.ConfigMouseRadiusWidth.Value, -1F, 1F);
                     }
@@ -106,7 +135,20 @@ namespace SwordArtOffline.Patches.Shared {
                     __result = 1;
                 }
             } else if (axisName == "Vertical") {
-                if (Plugin.ConfigControlMouse.Value != Plugin.MouseButtonControl.Off) {
+                if (Plugin.IoConnected) {
+                    unsafe {
+                        float deadzone = Plugin.ConfigIO4StickDeadzone.Value / 100F;
+                        JVSUSBReportIn report = Plugin.IoReport.Value;
+                        float v = report.adcs[Plugin.ConfigIO4AxisY.Value];
+                        if (Plugin.ConfigIO4AxisYInvert.Value) {
+                            v = ushort.MaxValue - v;
+                        }
+                        __result = map(v, Plugin.ConfigIO4AxisYMin.Value, Plugin.ConfigIO4AxisYMax.Value, -1, 1);
+                        if (__result >= -deadzone && __result <= deadzone) {
+                            __result = 0;
+                        }
+                    }
+                } else if (Plugin.ConfigControlMouse.Value != Plugin.MouseButtonControl.Off) {
                     if (Input.GetMouseButton(Plugin.ConfigControlMouse.Value == Plugin.MouseButtonControl.LeftMouseButton ? 0 : 1)) {
                         __result = Mathf.Clamp((Input.mousePosition.y - Screen.height / 2) / Plugin.ConfigMouseRadiusWidth.Value, -1F, 1F);
                     }
@@ -125,7 +167,16 @@ namespace SwordArtOffline.Patches.Shared {
         static bool GetAxisRaw(BnamPeripheral __instance, ref ushort __result, string axisName) {
             __result = 127;
             if (axisName == "Horizontal") {
-                if (Plugin.ConfigControlMouse.Value != Plugin.MouseButtonControl.Off) {
+                if (Plugin.IoConnected) {
+                    unsafe {
+                        JVSUSBReportIn report = Plugin.IoReport.Value;
+                        int v = report.adcs[Plugin.ConfigIO4AxisX.Value];
+                        if (Plugin.ConfigIO4AxisXInvert.Value) {
+                            v = ushort.MaxValue - v;
+                        }
+                        __result = (ushort)(v / ushort.MaxValue * 255);
+                    }
+                } else if (Plugin.ConfigControlMouse.Value != Plugin.MouseButtonControl.Off) {
                     if (Input.GetMouseButton(Plugin.ConfigControlMouse.Value == Plugin.MouseButtonControl.LeftMouseButton ? 0 : 1)) {
                         __result = (ushort)(Mathf.Clamp((Input.mousePosition.x - Screen.width / 2) / Plugin.ConfigMouseRadiusWidth.Value, -1F, 1F) * 255);
                     }
@@ -137,7 +188,16 @@ namespace SwordArtOffline.Patches.Shared {
                     __result = 255;
                 }
             } else if (axisName == "Vertical") {
-                if (Plugin.ConfigControlMouse.Value != Plugin.MouseButtonControl.Off) {
+                if (Plugin.IoConnected) {
+                    unsafe {
+                        JVSUSBReportIn report = Plugin.IoReport.Value;
+                        int v = report.adcs[Plugin.ConfigIO4AxisY.Value];
+                        if (Plugin.ConfigIO4AxisYInvert.Value) {
+                            v = ushort.MaxValue - v;
+                        }
+                        __result = (ushort)(v / ushort.MaxValue * 255);
+                    }
+                } else if (Plugin.ConfigControlMouse.Value != Plugin.MouseButtonControl.Off) {
                     if (Input.GetMouseButton(Plugin.ConfigControlMouse.Value == Plugin.MouseButtonControl.LeftMouseButton ? 0 : 1)) {
                         __result = (ushort)(Mathf.Clamp((Input.mousePosition.y - Screen.height / 2) / Plugin.ConfigMouseRadiusWidth.Value, -1F, 1F) * 255);
                     }

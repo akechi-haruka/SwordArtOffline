@@ -4,10 +4,13 @@ using ExitGames.Client.Photon;
 using GssSiteSystem;
 using HarmonyLib;
 using LINK;
+using LINK.ADVProgram;
+using LINK.ADVProgram.Inner.UI;
 using LINK.Battle;
 using LINK.TestMode;
 using LINK.UI;
 using SwordArtOffline.NetworkEx;
+using SwordArtOffline.Patches.Shared;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -18,6 +21,7 @@ using System.Text;
 using System.Threading;
 using UnityEngine;
 using UnityEngine.Events;
+using Utage;
 
 namespace SwordArtOffline.Patches.Game {
 
@@ -41,7 +45,12 @@ namespace SwordArtOffline.Patches.Game {
 
         [HarmonyPrefix, HarmonyPatch(typeof(ErrorCheckManager), "OccurredError")]
         static bool OccurredError(SystemErrorCode err, bool log = true) {
+            // hardcoded ip addresses, sigh
             if (err == SystemErrorCode.NET_DIFF_ROUTER) {
+                return false;
+            }
+            // let's swallow these so switching between terminal and satellite isn't a pain and we have to change dongle IDs on the fly
+            if (err == SystemErrorCode.SEC_SPEC_DONGLE) {
                 return false;
             }
             return true;
@@ -226,7 +235,7 @@ namespace SwordArtOffline.Patches.Game {
         static void ReceieveResponse(MasterDataVersionCheckProtocol __instance) {
             if (((GameConnectProt.master_data_version_check_R)__instance.Response).update_flag > 0) {
                 //LoadingDialog = Plugin.ShowDialog("Local game data is outdated. Updating game data from server...<br>This may take a moment.", null, null);
-                Plugin.Log.LogMessage("Updating master data... This may take a few minutes.");
+                //Plugin.Log.LogMessage("Updating master data... This may take a few minutes.");
             }
         }
 
@@ -240,6 +249,32 @@ namespace SwordArtOffline.Patches.Game {
         [HarmonyPrefix, HarmonyPatch(typeof(MenuUITime), "updateTime", typeof(float), typeof(float), typeof(bool))]
         static bool updateTime(float nowtime, float deltaTime, bool forceActive) {
             return !Plugin.ConfigTimeFreeze.Value;
+        }
+
+        [HarmonyPrefix, HarmonyPatch(typeof(AdvSelectionTimeLimit), "OnUpdateWaitInput")]
+        static bool updateTime(AdvSelectionManager selection, AdvSelectionTimeLimit __instance) {
+            if (Plugin.ConfigTimeFreeze.Value) {
+                return false;
+            }
+            return true;
+        }
+
+        [HarmonyPrefix, HarmonyPatch(typeof(AdvSelectionTimeLimitText), "OnUpdateWaitInput")]
+        static bool updateTime(AdvSelectionManager selection, AdvSelectionTimeLimitText __instance) {
+            if (Plugin.ConfigTimeFreeze.Value) {
+                return false;
+            }
+
+            return true;
+        }
+
+        [HarmonyPrefix, HarmonyPatch(typeof(ADVTimer), "Countdown")]
+        static bool Countdown() {
+            if (Plugin.ConfigTimeFreeze.Value) {
+                return false;
+            }
+
+            return true;
         }
 
         [HarmonyPrefix, HarmonyPatch(typeof(MenuUILocalData), "IsShopUsed", MethodType.Getter)]
@@ -399,6 +434,12 @@ namespace SwordArtOffline.Patches.Game {
                         }, false, 10f, __instance.m_thisTimeType, null, false);
                     }, false, 10f, __instance.m_thisTimeType, null, false);
                 });
+            }
+
+            // this is actually GMG logic but doesn't really hurt
+            if (UserDataManager.Instance.DefragMatchBasicUserData.State == DefragMatchEventState.NONE || UserDataManager.Instance.DefragMatchBasicUserData.DefragMatchId == 0) {
+                __instance.MainMenuButtons.DefragMatchBtn.SetButtonActive(false);
+                __instance.MainMenuButtons.DefragMatchBtn.SetOpenEffectActive(true, "A new Defrag Match will start soon!");
             }
         }
 
@@ -649,6 +690,70 @@ namespace SwordArtOffline.Patches.Game {
                 MenuUIManager.Instance.SetLimitTime(MenuUITime.TimeType.Generic, 0);
                 MenuUIManager.Instance.StopTimerControl();
             }
+        }
+
+        // for touch
+        [HarmonyPostfix, HarmonyPatch(typeof(TeamController), "execSwitch")]
+        static void execSwitch(int index, bool wait_skill, ref bool __result, TeamController __instance) {
+            if (__result && !__instance.otherPlayer) {
+                IOPatches.CurrentCharacter = index + 1;
+            }
+        }
+
+        private static byte[] ledStatus = new byte[255];
+
+        [HarmonyPrefix, HarmonyPatch(typeof(BNUsio), "SetGout")]
+        static bool SetGout(byte in_ucChannel, byte in_ucValue, ref int __result) {
+            if (Plugin.Io4 != null && Plugin.IoConnected) {
+                if (ledStatus[in_ucChannel] != in_ucValue) {
+                    //Plugin.Log.LogDebug("LED: " + in_ucChannel + " -> " + in_ucValue);
+                    ledStatus[in_ucChannel] = in_ucValue;
+                    if (in_ucChannel == 1 && Plugin.ConfigAttackButtonLed.Value > 0) {
+                        Plugin.Io4.SetGPIO(Plugin.ConfigAttackButtonLed.Value, in_ucValue > 0);
+                    } else if (in_ucChannel == 2 && Plugin.ConfigAttackButtonLed2.Value > 0) {
+                        Plugin.Io4.SetGPIO(Plugin.ConfigAttackButtonLed2.Value, in_ucValue > 0);
+                    } else if (in_ucChannel == 3 && Plugin.ConfigAttackButtonLed3.Value > 0) {
+                        Plugin.Io4.SetGPIO(Plugin.ConfigAttackButtonLed3.Value, in_ucValue > 0);
+                    }
+                }
+            }
+            __result = 0;
+            return false;
+        }
+
+
+        // fix autotranslate
+        [HarmonyPrefix, HarmonyPatch(typeof(ADVNovelText), "Update")]
+        static bool Update(ADVNovelText __instance) {
+            if (!__instance.System.IsInitComplete) {
+                return false;
+            }
+            __instance.UpdateColor();
+            string noneMetaString = __instance.novelText.text;
+            __instance.SetActiveNextMarker(__instance.Engine.Page.IsWaitInputInPage);
+            if (!string.IsNullOrEmpty(noneMetaString)) {
+                __instance.Engine.Page.CurrentTextLengthMax = noneMetaString.Length;
+                __instance.text.maxVisibleCharacters = __instance.novelText.LengthOfView;
+                __instance.text.SetText(noneMetaString);
+            }
+            return false;
+        }
+
+        // fix buttons
+        [HarmonyPostfix, HarmonyPatch(typeof(ADVSelection), "Init")]
+        static void Init(AdvSelection data, Action<ADVSelection> ButtonClickedEvent, ADVSelection __instance) {
+            // grab the text again
+            string text;
+            if (data.Text.Contains("[プレイヤー]")) {
+                text = data.Text.Replace("[プレイヤー]", UserDataManager.Instance.UserBasicData.DisplayNickName);
+            } else {
+                text = data.Text;
+            }
+            if (text.Contains("<param=player_name>")) {
+                text = text.Replace("<param=player_name>", UserDataManager.Instance.UserBasicData.DisplayNickName);
+            }
+            __instance.text.SetText(text);
+            __instance.text.text = text; // this is needed otherwise 25 characters...?
         }
     }
 }

@@ -1,4 +1,6 @@
 ﻿using HarmonyLib;
+using Haruka.Arcade.SEGA835Lib.Devices;
+using Haruka.Arcade.SEGA835Lib.Devices.Card._837_15396;
 using LINK;
 using LINK.TestMode;
 using Mono.Cecil;
@@ -193,22 +195,27 @@ namespace SwordArtOffline.Patches.Game {
         }
 
         private static void PrintExecutor() {
-            PrintFile(images[LeafPrinterImageType.ColorRGB]);
-            PrintFile(images[LeafPrinterImageType.Holo]);
+            string file1 = PrintFile(images[LeafPrinterImageType.ColorRGB]);
+            string file2 = null;
+            if (Plugin.ConfigPrinterHolo.Value) {
+                file2 = PrintFile(images[LeafPrinterImageType.Holo], true);
+            }
 
             if (Plugin.ConfigPrinterUseHandler.Value && Plugin.ConfigPrinterHandler.Value != "") {
                 try {
                     string exe = Plugin.ConfigPrinterHandler.Value;
                     string cwd = new FileInfo(exe).Directory.FullName;
-                    Plugin.Log.LogInfo("Print invoking: " + exe + ", cwd: " + cwd);
-                    ProcessStartInfo psi = new ProcessStartInfo(exe, Plugin.ConfigPrinterHandlerArguments.Value) {
+                    string args = Plugin.ConfigPrinterHandlerArguments.Value.Replace("%IMAGE_PATH%", file1).Replace("%HOLO_PATH%", file2).Replace("%HOLO_ARG%", !String.IsNullOrEmpty(file2) ? "--holo" : "");
+                    Plugin.Log.LogInfo("Print invoking: " + exe + ", cwd: " + cwd + ", args: " + args);
+                    ProcessStartInfo psi = new ProcessStartInfo(exe, args) {
                         UseShellExecute = false,
                         CreateNoWindow = true,
                         WindowStyle = ProcessWindowStyle.Hidden,
                         WorkingDirectory = cwd
                     };
                     Process zebra = Process.Start(psi);
-                    if (!zebra.WaitForExit(60000)) {
+                    if (!zebra.WaitForExit(300_000)) {
+                        Plugin.Log.LogError("WaitForExit failed: " + zebra.ExitCode);
                         printResult = LeafPrinterPrintResult.Error;
                         return;
                     }
@@ -231,7 +238,7 @@ namespace SwordArtOffline.Patches.Game {
             printResult = LeafPrinterPrintResult.OK;
         }
 
-        private static String PrintFile(Texture2D out_tex) {
+        private static String PrintFile(Texture2D out_tex, bool is_holo = false) {
             if (out_tex == null) {
                 return null;
             }
@@ -242,7 +249,7 @@ namespace SwordArtOffline.Patches.Game {
             string file_pre = dir + "\\" + "card_";
             string file_full;
             for (int i = 0; true; i++) {
-                file_full = file_pre + String.Format("{0:0000}", i) + ".png";
+                file_full = file_pre + String.Format("{0:0000}", i) + (is_holo ? "_holo" : "") + ".png";
                 if (!File.Exists(file_full)) {
                     break;
                 }
@@ -251,7 +258,7 @@ namespace SwordArtOffline.Patches.Game {
             Plugin.Log.LogDebug("size=" + out_tex.width + "x" + out_tex.height + "@" + out_tex.format);
             byte[] pngbytes = out_tex.EncodeToPNG();
             File.WriteAllBytes(file_full, pngbytes);
-            return file_full;
+            return new FileInfo(file_full).FullName;
         }
 
         [HarmonyPatch(typeof(bnAMPF), "LeafPrinterAbortPrint")]
@@ -562,6 +569,12 @@ namespace SwordArtOffline.Patches.Game {
         static bool BanapassStartRead() {
             Plugin.Log.LogDebug("AMPF: BanapassStartRead");
             reading = true;
+            if (Plugin.Aime != null) {
+                Plugin.Aime.ClearCard();
+                Plugin.Aime.LEDSetColor(255, 255, 255);
+                Plugin.Aime.RadioOn(RadioOnType.Both);
+                Plugin.Aime.StartPolling();
+            }
             return false;
         }
 
@@ -570,13 +583,25 @@ namespace SwordArtOffline.Patches.Game {
         static bool BanapassAbortRead() {
             Plugin.Log.LogDebug("AMPF: BanapassAbortRead");
             reading = false;
+            if (Plugin.Aime != null) {
+                Plugin.Aime.LEDSetColor(0, 0, 0);
+                Plugin.Aime.StopPolling();
+                Plugin.Aime.ClearCard();
+            }
             return false;
         }
 
         [HarmonyPatch(typeof(bnAMPF), "BanapassGetReadResult")]
         [HarmonyPrefix]
         static bool BanapassGetReadResult(ref BanapassReadStatus __result) {
-            __result = reading && Plugin.ConfigButtonScanCard.Value.IsPressed() ? BanapassReadStatus.OK : BanapassReadStatus.Busy;
+            if (Plugin.Aime != null) {
+                __result = reading && Plugin.Aime.HasDetectedCard() ? BanapassReadStatus.OK : BanapassReadStatus.Busy;
+                if (!Plugin.Aime.IsPolling() && !Plugin.Aime.HasDetectedCard()) {
+                    __result = (DeviceStatus)Plugin.Aime.GetLastError() == DeviceStatus.ERR_INCOMPATIBLE ? BanapassReadStatus.CardError : BanapassReadStatus.Error;
+                }
+            } else {
+                __result = reading && Plugin.ConfigButtonScanCard.Value.IsPressed() ? BanapassReadStatus.OK : BanapassReadStatus.Busy;
+            }
             return false;
         }
 
@@ -584,11 +609,21 @@ namespace SwordArtOffline.Patches.Game {
         [HarmonyPrefix]
         static bool BanapassGetReadCard(ref IntPtr __result) {
             __result = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(BanapassCardInfo)));
-            var property = new BanapassCardInfo() {
-                Type = BanapassCardType.Banapass,
-                AccessCode = Marshal.StringToHGlobalUni(Plugin.CardID.Value),
-                ChipId = Marshal.StringToHGlobalUni(Plugin.CardID.Value)
-            };
+            BanapassCardInfo property;
+            if (Plugin.Aime != null) {
+                property = new BanapassCardInfo() {
+                    Type = BanapassCardType.Banapass,
+                    AccessCode = Marshal.StringToHGlobalUni(Plugin.Aime.GetCardUIDAsString()),
+                    ChipId = Marshal.StringToHGlobalUni(Plugin.Aime.GetCardUIDAsString())
+                };
+                Plugin.Aime.ClearCard();
+            } else {
+                property = new BanapassCardInfo() {
+                    Type = BanapassCardType.Banapass,
+                    AccessCode = Marshal.StringToHGlobalUni(Plugin.CardID.Value),
+                    ChipId = Marshal.StringToHGlobalUni(Plugin.CardID.Value)
+                };
+            }
             Marshal.StructureToPtr(property, __result, false);
             return false;
         }

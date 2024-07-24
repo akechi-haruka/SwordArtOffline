@@ -1,10 +1,17 @@
 ﻿using AssetBundles.Manager;
 using BepInEx;
+using BepInEx.Bootstrap;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
+using Haruka.Arcade.SEGA835Lib.Devices;
+using Haruka.Arcade.SEGA835Lib.Devices.Card;
+using Haruka.Arcade.SEGA835Lib.Devices.Card._837_15396;
+using Haruka.Arcade.SEGA835Lib.Devices.IO;
+using Haruka.Arcade.SEGA835Lib.Devices.IO._835_15257_01;
 using LINK;
 using LINK.UI;
+using SwordArtOffline.Patches;
 using SwordArtOffline.Patches.Game;
 using SwordArtOffline.Patches.Notice;
 using SwordArtOffline.Patches.Shared;
@@ -13,6 +20,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -21,6 +29,7 @@ namespace SwordArtOffline {
     extern alias AssemblyNotice;
 
     [BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
+    [BepInDependency("eu.haruka.gmg.apm.emoneyuilink", BepInDependency.DependencyFlags.SoftDependency)]
     public class Plugin : BaseUnityPlugin {
 
         private const String SEC_BUTTONS = "Keybindings";
@@ -79,10 +88,33 @@ namespace SwordArtOffline {
         public static ConfigEntry<string> ConfigPrinterHandlerArguments;
         public static ConfigEntry<bool> ConfigPrinterCleanOnStart;
         public static ConfigEntry<bool> ConfigPrinterUseHandler;
+        public static ConfigEntry<bool> ConfigPrinterHolo;
         public static ConfigEntry<string> ConfigForceCamera;
+        public static ConfigEntry<int> ConfigAimeReaderPort;
+        public static ConfigEntry<bool> ConfigShowMenuKeybinds;
+        public static ConfigEntry<bool> ConfigUseIO4Stick;
+        public static ConfigEntry<int> ConfigIO4AxisX;
+        public static ConfigEntry<bool> ConfigIO4AxisXInvert;
+        public static ConfigEntry<int> ConfigIO4AxisY;
+        public static ConfigEntry<bool> ConfigIO4AxisYInvert;
+        public static ConfigEntry<int> ConfigAttackButtonLed;
+        public static ConfigEntry<int> ConfigAttackButtonLed2;
+        public static ConfigEntry<int> ConfigAttackButtonLed3;
+        public static ConfigEntry<int> ConfigIO4StickDeadzone;
+        public static ConfigEntry<bool> ConfigHardTranslations;
+        public static ConfigEntry<int> ConfigIO4AxisXMin;
+        public static ConfigEntry<int> ConfigIO4AxisXMax;
+        public static ConfigEntry<int> ConfigIO4AxisYMin;
+        public static ConfigEntry<int> ConfigIO4AxisYMax;
         private static String keychip;
         private static IntPtr keychipA = IntPtr.Zero;
         private static IntPtr keychipU = IntPtr.Zero;
+
+        public static AimeCardReader_837_15396 Aime;
+        public static bool AimeConnected;
+        public static IO4USB_835_15257_01 Io4;
+        public static bool IoConnected;
+        public static JVSUSBReportIn? IoReport;
 
         public enum MouseButtonControl {
             Off, LeftMouseButton, RightMouseButton
@@ -153,6 +185,8 @@ namespace SwordArtOffline {
             ConfigPhotonLogging = Config.Bind("Network", "Matching Server Logging", false, new ConfigDescription("Photon Server packet logging, only useful for debugging issues with the photon emulator", null, new ConfigurationManagerAttributes { IsAdvanced = true }));
             ConfigMoveToFrontOnStart = Config.Bind("General", "Move to front on start", true, "Moves the game window to the foreground on startup");
             ConfigShowCursor = Config.Bind("General", "Show Mouse Cursor", true, "Shows the mouse cursor. Disable if using touchscreen.");
+            ConfigShowMenuKeybinds = Config.Bind("General", "Show Keybindings on Startup", true, "Shows the most important keybindings when the game starts up (if MessageCenter is active)");
+            ConfigHardTranslations = Config.Bind("General", "Hard Translations", true, "Translates some hard-coded strings to English");
 
 
             ConfigButtonRetryNetworkImmediately = Config.Bind(SEC_BUTTONS, "Immediate Network Retry", new KeyboardShortcut(KeyCode.Keypad0), new ConfigDescription("If Auto-Retry Delay is 0, use this key to retry network connection", null, new ConfigurationManagerAttributes { IsAdvanced = true }));
@@ -177,10 +211,24 @@ namespace SwordArtOffline {
             ConfigPrinterDirectory = Config.Bind("Terminal", "Printer Directory", "../nvram/print", "The directory where printed cards are written to");
             ConfigPrinterUseHandler = Config.Bind("Terminal", "Printer Handler", false, "Uses the specified printer handler to print.");
             ConfigPrinterHandler = Config.Bind("Terminal", "Printer Handler: Executable", "../ZebraSpooler.exe", "The name of an executable that is executed after printing");
-            ConfigPrinterHandlerArguments = Config.Bind("Terminal", "Printer Handler: Executable Arguments", "nvram/print", "The arguments passed to the printer handler executable.");
+            ConfigPrinterHandlerArguments = Config.Bind("Terminal", "Printer Handler: Executable Arguments", "nvram/print", "The arguments passed to the printer handler executable. %IMAGE_PATH% and %HOLO_PATH% can be used as placeholders for the printed files.");
             ConfigPrinterCleanOnStart = Config.Bind("Terminal", "Clean Printer Directory On Start", false, "If enabled, the contents of the printer directory will be emptied on start.");
-            ConfigPrinterCleanOnStart = Config.Bind("Terminal", "Print Holo Layer", true, "If enabled, the holo layer will also be saved as a seperate file.");
+            ConfigPrinterHolo = Config.Bind("Terminal", "Print Holo Layer", true, "If enabled, the holo layer will also be saved as a seperate file.");
 
+            ConfigAimeReaderPort = Config.Bind("Real Hardware", "Aime Reader Port", 0, "Port for a 837-15396 Aime card reader (0 to disable)");
+            ConfigUseIO4Stick = Config.Bind("Real Hardware", "Enable IO4", false, "Connects to a IO4 board");
+            ConfigIO4AxisX = Config.Bind("Real Hardware", "X Axis ADC", 0, "The ADC to use for X axis input");
+            ConfigIO4AxisY = Config.Bind("Real Hardware", "Y Axis ADC", 4, "The ADC to use for Y axis input");
+            ConfigIO4AxisXMin = Config.Bind("Real Hardware", "X Axis ADC Min", 0, "Min value for X axis");
+            ConfigIO4AxisXMax = Config.Bind("Real Hardware", "X Axis ADC Max", 65535, "Max value for X axis");
+            ConfigIO4AxisYMin = Config.Bind("Real Hardware", "Y Axis ADC Min", 0, "Min value for Y axis");
+            ConfigIO4AxisYMax = Config.Bind("Real Hardware", "Y Axis ADC Max", 65535, "Max value for Y axis");
+            ConfigIO4StickDeadzone = Config.Bind("Real Hardware", "Stick Deadzone", 15, "The stick deadzone in percent");
+            ConfigIO4AxisXInvert = Config.Bind("Real Hardware", "X Axis Invert", false, "Inverts the X axis");
+            ConfigIO4AxisYInvert = Config.Bind("Real Hardware", "Y Axis Invert", false, "Inverts the Y axis");
+            ConfigAttackButtonLed = Config.Bind("Real Hardware", "IO4 Attack LED 1", 0, "The LED for the Attack 1 button on an IO4");
+            ConfigAttackButtonLed2 = Config.Bind("Real Hardware", "IO4 Attack LED 2", 0, "The LED for the Attack 2 button on an IO4");
+            ConfigAttackButtonLed3 = Config.Bind("Real Hardware", "IO4 Attack LED 3", 0, "The LED for the Attack 3 button on an IO4");
 
             string exe = Environment.CurrentDirectory.Split('\\').Last();
             Logger.LogDebug("Game = " + exe);
@@ -197,6 +245,7 @@ namespace SwordArtOffline {
                 Harmony.CreateAndPatchAll(typeof(DataDestructionOverwriteSystem), "eu.haruka.gmg.sao.fixes.game.destroy");
                 Harmony.CreateAndPatchAll(typeof(DebugPatchesGame), "eu.haruka.gmg.sao.fixes.game.debug");
                 Harmony.CreateAndPatchAll(typeof(CameraPatchesGame), "eu.haruka.gmg.sao.fixes.game.camera");
+                Harmony.CreateAndPatchAll(typeof(TranslationPatchesGame), "eu.haruka.gmg.sao.fixes.game.tl");
                 BasePatchesGame.Initialize();
                 runGameUpdate = true;
             }
@@ -232,7 +281,62 @@ namespace SwordArtOffline {
                 Directory.CreateDirectory(ConfigPrinterDirectory.Value);
             }
 
+            Haruka.Arcade.SEGA835Lib.Debugging.Log.Mute = true;
+            Haruka.Arcade.SEGA835Lib.Debugging.Log.LogMessageWritten += Log_LogMessageWritten;
+            if (ConfigAimeReaderPort.Value > 0) {
+                Log.LogInfo("Aime connection on port " + ConfigAimeReaderPort.Value);
+                Aime = new AimeCardReader_837_15396(ConfigAimeReaderPort.Value);
+                DeviceStatus ret = Aime.Connect();
+                AimeConnected = ret == DeviceStatus.OK;
+                if (AimeConnected) {
+                    Aime.LEDReset();
+                    Aime.GetHWVersion(out string v);
+                    Log.LogInfo("Aime Board: " + v);
+                } else {
+                    Log.LogMessage("Aime connection failed: " + ret);
+                }
+            }
+            if (ConfigUseIO4Stick.Value) {
+                Log.LogInfo("Connecting to IO4");
+                Io4 = new IO4USB_835_15257_01();
+                DeviceStatus ret = Io4.Connect();
+                IoConnected = ret == DeviceStatus.OK;
+                if (IoConnected) {
+                    Io4.ResetBoardStatus();
+                    new Thread(Io4Polling).Start();
+                } else {
+                    Log.LogMessage("IO4 connection failed: " + ret);
+                }
+            }
+
+            BaseUnityPlugin emoneyuilink = Chainloader.Plugins.Find(p => p.Info.Metadata.GUID == "eu.haruka.gmg.apm.emoneyuilink");
+            if (emoneyuilink != null) {
+                EMoneyUILinkIntegration.Initalize(Aime);
+            } else {
+                Plugin.Log.LogWarning("EMoneyUI integration not found");
+            }
+
+
             Logger.LogInfo($"{PluginInfo.PLUGIN_GUID} is loaded!");
+        }
+
+        private void Io4Polling() {
+            while (IoConnected) {
+                DeviceStatus ret = Io4.Poll(out JVSUSBReportIn r);
+                if (ret != DeviceStatus.OK) {
+                    IoConnected = false;
+                    Log.LogError("IO4 poll failed: " + ret);
+                    break;
+                } else {
+                    IoReport = r;
+                }
+                Thread.Sleep(1);
+            }
+            Io4?.Disconnect();
+        }
+
+        private void Log_LogMessageWritten(Haruka.Arcade.SEGA835Lib.Debugging.LogEntry obj) {
+            Logger.LogInfo("Sega835Lib: " + obj.Message);
         }
 
         private void SceneManager_activeSceneChanged(Scene arg0, Scene arg1) {
@@ -240,9 +344,11 @@ namespace SwordArtOffline {
             if (arg1.name == "SubScene_AttractPv_Parent") {
                 Logger.LogMessage("SwordArtOffline " + PluginInfo.PLUGIN_VERSION + " mod for SAO Arcade: Deep Explorer - 2024 Haruka");
                 Logger.LogMessage("part of the GenericMusicGames preservation project");
-                Logger.LogMessage("Press F1 to open the mod settings menu.");
-                Logger.LogMessage("Press " + ConfigButtonScanCard.Value.MainKey + " to scan your Banapassport.");
-                Logger.LogMessage("Press " + ConfigButtonCoin.Value.MainKey + " to insert a coin.");
+                if (Plugin.ConfigShowMenuKeybinds.Value) {
+                    Logger.LogMessage("Press F1 to open the mod settings menu.");
+                    Logger.LogMessage("Press " + ConfigButtonScanCard.Value.MainKey + " to scan your Banapassport.");
+                    Logger.LogMessage("Press " + ConfigButtonCoin.Value.MainKey + " to insert a coin.");
+                }
             } else if (arg1.name == "Quest") {
                 IOPatches.ResetCharacterPosition();
             }
