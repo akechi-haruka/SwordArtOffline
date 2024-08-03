@@ -116,15 +116,30 @@ namespace SwordArtOffline.Patches.Game {
         }
 
         [HarmonyPrefix, HarmonyPatch(typeof(ADXSoundManager), "Play", typeof(string), typeof(Func<Vector3>))]
-        static bool Play(string tagName, Func<Vector3> func = null) {
+        static bool Play(string tagName, Func<Vector3> func) {
             if (Plugin.ConfigUIMURDERYUI.Value) {
                 if (tagName != null) {
                     if (tagName.Contains("CH_YUI")) {
-                        return false;
+                        // workaround for playMVPVoice NPE
+                        if (tagName.Equals("CH_YUI_RES_007")) {
+                            return true;
+                        } else {
+                            return false;
+                        }
                     }
                 }
             }
             return true;
+        }
+
+        // workaround for playMVPVoice NPE
+        [HarmonyPostfix, HarmonyPatch(typeof(ADXSoundManager), "Play", typeof(string), typeof(Func<Vector3>))]
+        static void Play(string tagName, Func<Vector3> func, ref ADXPlayBack __result) {
+            if (Plugin.ConfigUIMURDERYUI.Value) {
+                if (__result != null && tagName.Equals("CH_YUI_RES_007")) {
+                    __result.PlayBack.StopWithoutReleaseTime();
+                }
+            }
         }
 
         [HarmonyPostfix, HarmonyPatch(typeof(UIResultHeroLogAnalyzeMainControl), "StartYuiChance")]

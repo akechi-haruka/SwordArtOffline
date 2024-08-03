@@ -37,6 +37,9 @@
     <Reference Include="eMoneyUILink">
       <HintPath>..\..\APMCoreFixes\eMoneyUILink\bin\Debug\eMoneyUILink.dll</HintPath>
     </Reference>
+    <Reference Include="External.ADX">
+      <HintPath>L:\SDVX\sao\game\link_Data\Managed\External.ADX.dll</HintPath>
+    </Reference>
     <Reference Include="GssSite">
       <HintPath>L:\SDVX\sao\game\link_Data\Managed\GssSite-nstrip.dll</HintPath>
       <Private>False</Private>

@@ -723,28 +723,50 @@ namespace SwordArtOffline.Patches.Game {
 
 
         // fix autotranslate
-        [HarmonyPrefix, HarmonyPatch(typeof(ADVNovelText), "Update")]
+        [HarmonyPrefix, HarmonyPriority(Priority.HigherThanNormal), HarmonyPatch(typeof(ADVNovelText), "Update")]
         static bool Update(ADVNovelText __instance) {
             if (!__instance.System.IsInitComplete) {
                 return false;
             }
+
+            AdvPage page = __instance.Engine.Page;
+
             __instance.UpdateColor();
-            string noneMetaString = __instance.novelText.text;
-            __instance.SetActiveNextMarker(__instance.Engine.Page.IsWaitInputInPage);
-            if (!string.IsNullOrEmpty(noneMetaString)) {
-                __instance.Engine.Page.CurrentTextLengthMax = noneMetaString.Length;
+            
+            string currentText = __instance.novelText.text;
+            __instance.SetActiveNextMarker(page.IsWaitInputInPage);
+            
+            if (!string.IsNullOrEmpty(currentText)) {
+
+                if (page.CurrentTextLengthMax == page.CurrentTextLength && __instance.novelText.LengthOfView != currentText.Length) {
+                    // soft reset all the crap
+                    page.RemakeText();
+                    page.Status = AdvPage.PageStatus.SendChar;
+                    page.waitingTimeInput = 0;
+                    page.deltaTimeSendMessage = 0;
+                    page.IsWaitingInputCommand = false;
+                    page.LastInputSendMessage = false;
+                    page.Contoller.Clear();
+                    page.Contoller.IsWaitInput = false;
+                    page.Engine.Config.autoPageWaitSecMax = 5F; // this doesn't seem to do anything
+                }
+
+                page.CurrentTextLengthMax = currentText.Length;
                 __instance.text.maxVisibleCharacters = __instance.novelText.LengthOfView;
-                __instance.text.SetText(noneMetaString);
+                __instance.text.SetText(currentText);
+
             }
+
             return false;
         }
 
         // fix buttons
-        [HarmonyPostfix, HarmonyPatch(typeof(ADVSelection), "Init")]
+        [HarmonyPostfix, HarmonyPriority(Priority.HigherThanNormal), HarmonyPatch(typeof(ADVSelection), "Init")]
         static void Init(AdvSelection data, Action<ADVSelection> ButtonClickedEvent, ADVSelection __instance) {
+
             // grab the text again
-            string text;
-            if (data.Text.Contains("[プレイヤー]")) {
+            string text = data.Text;
+            /*if (data.Text.Contains("[プレイヤー]")) {
                 text = data.Text.Replace("[プレイヤー]", UserDataManager.Instance.UserBasicData.DisplayNickName);
             } else {
                 text = data.Text;
@@ -752,6 +774,9 @@ namespace SwordArtOffline.Patches.Game {
             if (text.Contains("<param=player_name>")) {
                 text = text.Replace("<param=player_name>", UserDataManager.Instance.UserBasicData.DisplayNickName);
             }
+            if (text.Contains("<param\\=player_name>")) {
+                text = text.Replace("<param\\=player_name>", UserDataManager.Instance.UserBasicData.DisplayNickName);
+            }*/
             __instance.text.SetText(text);
             __instance.text.text = text; // this is needed otherwise 25 characters...?
         }
