@@ -603,6 +603,11 @@ namespace SwordArtOffline.Patches.Game {
             }
         }
 
+        [HarmonyPostfix, HarmonyPatch(typeof(ErrorUIManager), "ShowNetworkErrorAfterLogin")]
+        static void ShowNetworkErrorAfterLogin(NetworkManageComponent protocol) {
+            Plugin.Log.LogDebug("ErrorUI (network) called from\n" + Environment.StackTrace);
+        }
+
         // cause matching server issues not to lock the game
         [HarmonyPrefix, HarmonyPatch(typeof(GameManager), "HandleException")]
         static bool HandleException(string logString, string stackTrace, LogType type) {
@@ -738,6 +743,10 @@ namespace SwordArtOffline.Patches.Game {
             
             if (!string.IsNullOrEmpty(currentText)) {
 
+                if (currentText.Contains("<param=player_name>")) { // ??? w hy is this needed ???
+                    currentText = currentText.Replace("<param=player_name>", UserDataManager.Instance.UserBasicData.DisplayNickName);
+                }
+
                 if (page.CurrentTextLengthMax == page.CurrentTextLength && __instance.novelText.LengthOfView != currentText.Length) {
                     // soft reset all the crap
                     page.RemakeText();
@@ -764,19 +773,13 @@ namespace SwordArtOffline.Patches.Game {
         [HarmonyPostfix, HarmonyPriority(Priority.HigherThanNormal), HarmonyPatch(typeof(ADVSelection), "Init")]
         static void Init(AdvSelection data, Action<ADVSelection> ButtonClickedEvent, ADVSelection __instance) {
 
-            // grab the text again
-            string text = data.Text;
-            /*if (data.Text.Contains("[プレイヤー]")) {
+            string text;
+            if (data.Text.Contains("[プレイヤー]")) {
                 text = data.Text.Replace("[プレイヤー]", UserDataManager.Instance.UserBasicData.DisplayNickName);
             } else {
                 text = data.Text;
             }
-            if (text.Contains("<param=player_name>")) {
-                text = text.Replace("<param=player_name>", UserDataManager.Instance.UserBasicData.DisplayNickName);
-            }
-            if (text.Contains("<param\\=player_name>")) {
-                text = text.Replace("<param\\=player_name>", UserDataManager.Instance.UserBasicData.DisplayNickName);
-            }*/
+
             __instance.text.SetText(text);
             __instance.text.text = text; // this is needed otherwise 25 characters...?
         }

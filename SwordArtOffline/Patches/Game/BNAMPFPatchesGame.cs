@@ -503,6 +503,7 @@ namespace SwordArtOffline.Patches.Game {
             } else {
                 Plugin.Service -= count;
             }
+            Plugin.SaveAMPFCoin();
             return false;
         }
 

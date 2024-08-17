@@ -191,7 +191,7 @@ namespace SwordArtOffline.Patches.Game {
             return false;
         }*/
 
-        /*[HarmonyPrefix, HarmonyPatch(typeof(GashaDataRarity), "GetLogData")]
+        [HarmonyPrefix, HarmonyPatch(typeof(GashaDataRarity), "GetLogData")]
         static bool GetLogData(ref CommonUI_GashaMenuDataManager.GashaLogData __result, GashaDataRarity __instance, RewardType type, int id) {
             CommonUI_GashaMenuDataManager.GashaLogData gashaLogData = default(CommonUI_GashaMenuDataManager.GashaLogData);
             Plugin.Log.LogDebug("GashaData size = " + __instance.gashaData.Count);
@@ -208,8 +208,9 @@ namespace SwordArtOffline.Patches.Game {
                         if (((HeroLogUserData)logData.Log).HeroLogId == id) {
                             gashaLogData = gashaLogData2;
                             flag = true;
+                        } else {
+                            Plugin.Log.LogDebug("Not matched " + ((HeroLogUserData)logData.Log).HeroLogId);
                         }
-                        Plugin.Log.LogDebug("Not matched " + ((HeroLogUserData)logData.Log).HeroLogId);
                         break;
                     case SelectTubLogIdentifier.EQUIPMENT_WEAPON:
                     case SelectTubLogIdentifier.EQUIPMENT_ARMOR:
@@ -219,6 +220,8 @@ namespace SwordArtOffline.Patches.Game {
                         if (((EquipmentUserData)logData.Log).EquipmentId == id) {
                             gashaLogData = gashaLogData2;
                             flag = true;
+                        } else {
+                            Plugin.Log.LogDebug("Not matched " + ((EquipmentUserData)logData.Log).EquipmentId);
                         }
                         break;
                     case SelectTubLogIdentifier.ITEM:
@@ -254,6 +257,6 @@ namespace SwordArtOffline.Patches.Game {
             return false;
 
         }
-        */
+        
     }
 }
