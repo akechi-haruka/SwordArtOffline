@@ -192,13 +192,13 @@ namespace SwordArtOffline {
             ConfigButtonRetryNetworkImmediately = Config.Bind(SEC_BUTTONS, "Immediate Network Retry", new KeyboardShortcut(KeyCode.Keypad0), new ConfigDescription("If Auto-Retry Delay is 0, use this key to retry network connection", null, new ConfigurationManagerAttributes { IsAdvanced = true }));
             ConfigNetworkAutoRetry = Config.Bind("Network", "Enable Network Retry", true, new ConfigDescription("Retry failed network connections instead of throwing an error and stopping game operation.", null, new ConfigurationManagerAttributes { IsAdvanced = true }));
             ConfigNetworkAutoRetryDelay = Config.Bind("Network", "Auto-Retry Delay", 59, new ConfigDescription("Time (in seconds) until a failed network connection is reattempted. Set to 99 for manual reconnection.", new AcceptableValueRange<int>(5, 99), new ConfigurationManagerAttributes { IsAdvanced = true }));
-            ConfigReconnectUseDialogSystem = Config.Bind("Network", "Use Ingame Dialogs", true, "Uses ingame dialogs to display connection errors, otherwise uses BepInEx.MessageCenter.");
+            ConfigReconnectUseDialogSystem = Config.Bind("Network", "Use Ingame Dialogs", false, "Uses ingame dialogs to display connection errors, otherwise uses BepInEx.MessageCenter.");
 
             ConfigUIShowComboMeter = Config.Bind("User Interface", "Show Combo Meter", true, "If disabled, the combo meter (that covers the minimap partially...) is hidden.");
             ConfigUIShowMinimap = Config.Bind("User Interface", "UI Layout / Minimap", MinimapUILayout.Normal, "If disabled, the minimap is hidden and you need to find your own way. You can also move the bonus list to this position to save screen space.");
             ConfigUIShowComments = Config.Bind("User Interface", "Show Commentary", true, "If disabled, the character commentary on the left side during gameplay is hidden.");
             ConfigUIShowDirectionalArrows = Config.Bind("User Interface", "Show Directional Arrows", true, "If disabled, the giant red directional arrows (look, the GIANT COLLECTIBLE THAT YOU ABSOLUTELY DO NOT WANT TO MISS IS RIGHT HERE, DIRECTLY ON THE SCREEN) are hidden.");
-            ConfigUIMURDERYUI = Config.Bind("User Interface", "Delete Yui", false, "Did you know who ruined the anime before Oberon? Yui.\n\n(Removes all Yui sprites and voice lines from gameplay)");
+            ConfigUIMURDERYUI = Config.Bind("User Interface", "Delete Yui", false, "Did you know who ruined the anime before Oberon? Yui.\n\n(Removes all Yui sprites and voice lines from everywhere, excluding the medals)");
             ConfigUIBonusStartsExpanded = Config.Bind("User Interface", "EXBonus Always Shown", false, "If enabled, the EX bonus list will be automatically expanded on quest start.");
 
             ConfigTimeFreeze = Config.Bind("General", "Timer Freeze", false, new ConfigDescription("Freezes menu timers.", null, new ConfigurationManagerAttributes { IsAdvanced = true }));
@@ -316,6 +316,10 @@ namespace SwordArtOffline {
                 Plugin.Log.LogWarning("EMoneyUI integration not found");
             }
 
+            if (!WantsBootSatellite) {
+                LoadAMPFCoin();
+            }
+
 
             Logger.LogInfo($"{PluginInfo.PLUGIN_GUID} is loaded!");
         }
@@ -357,9 +361,11 @@ namespace SwordArtOffline {
         public void Update() {
             if (ConfigButtonCoin.Value.IsDown()) {
                 Coins++;
+                SaveAMPFCoin();
             }
             if (ConfigButtonService.Value.IsDown()) {
                 Service++;
+                SaveAMPFCoin();
             }
             if (ConfigShowCursor.Value && !Cursor.visible) {
                 Cursor.visible = true;
@@ -406,6 +412,34 @@ namespace SwordArtOffline {
             }
             if (runGameUpdate) {
                 UpdateGame();
+            }
+        }
+
+        public static void LoadAMPFCoin() {
+            string f = "F:\\saocf_ampf_coin.bin";
+            if (File.Exists(f)) {
+                try {
+                    string[] data = File.ReadAllText(f).Split(',');
+                    Coins = Int32.Parse(data[0]);
+                    Service = Int32.Parse(data[1]);
+                    Log.LogDebug("Restored credits from AMPF backup");
+                } catch {
+                    Log.LogError("Failed to restore credits from AMPF backup");
+                }
+            } else {
+                Log.LogWarning("No AMPF backup found");
+            }
+        }
+
+        public static void SaveAMPFCoin() {
+            if (GameManager.IsTerminal) {
+                string f = "F:\\saocf_ampf_coin.bin";
+                try {
+                    File.WriteAllText(f, Coins + "," + Service);
+                    Log.LogDebug("AMPF backup saved");
+                } catch (Exception ex) {
+                    Log.LogError("Failed to save AMPF backup: " + ex);
+                }
             }
         }
 
