@@ -106,6 +106,7 @@ namespace SwordArtOffline {
         public static ConfigEntry<int> ConfigIO4AxisXMax;
         public static ConfigEntry<int> ConfigIO4AxisYMin;
         public static ConfigEntry<int> ConfigIO4AxisYMax;
+        public static ConfigEntry<bool> ConfigDisableTextAutoAdvance;
         private static String keychip;
         private static IntPtr keychipA = IntPtr.Zero;
         private static IntPtr keychipU = IntPtr.Zero;
@@ -187,7 +188,7 @@ namespace SwordArtOffline {
             ConfigShowCursor = Config.Bind("General", "Show Mouse Cursor", true, "Shows the mouse cursor. Disable if using touchscreen.");
             ConfigShowMenuKeybinds = Config.Bind("General", "Show Keybindings on Startup", true, "Shows the most important keybindings when the game starts up (if MessageCenter is active)");
             ConfigHardTranslations = Config.Bind("General", "Hard Translations", true, "Translates some hard-coded strings to English");
-
+            ConfigDisableTextAutoAdvance = Config.Bind("General", "Disable Text Auto-Advance", false, "During cutscenes, disable text auto-advancing");
 
             ConfigButtonRetryNetworkImmediately = Config.Bind(SEC_BUTTONS, "Immediate Network Retry", new KeyboardShortcut(KeyCode.Keypad0), new ConfigDescription("If Auto-Retry Delay is 0, use this key to retry network connection", null, new ConfigurationManagerAttributes { IsAdvanced = true }));
             ConfigNetworkAutoRetry = Config.Bind("Network", "Enable Network Retry", true, new ConfigDescription("Retry failed network connections instead of throwing an error and stopping game operation.", null, new ConfigurationManagerAttributes { IsAdvanced = true }));

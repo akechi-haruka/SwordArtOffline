@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using TMPro;
+using UnityEngine;
 
 namespace SwordArtOffline.Patches {
     internal class TranslationPatchesGame {
@@ -138,6 +139,24 @@ IL_019D:
                 return false;
             }
             return true;
+        }
+
+        [HarmonyPrefix, HarmonyPatch(typeof(MainMenuButton), "SetExTowerActive")]
+        static bool SetExTowerActive(ref MainMenuButton __instance, bool flag, string titleText = "") {
+            if (Plugin.ConfigHardTranslations.Value) {
+                Transform transform = __instance.transform.Find("EXTowerInfo");
+                if (transform != null) {
+                    if (flag) {
+                        transform.GetComponent<Animator>().SetTrigger("FadeIn");
+                        transform.Find("EXTowerInfoText").GetComponent<TextMeshProUGUI>().SetText("EX Tower open!");
+                    } else {
+                        transform.GetComponent<Animator>().SetTrigger("FadeOut");
+                    }
+                }
+                return false;
+            } else {
+                return true;
+            }
         }
 
     }

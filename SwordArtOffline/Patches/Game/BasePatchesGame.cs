@@ -5,6 +5,7 @@ using GssSiteSystem;
 using HarmonyLib;
 using LINK;
 using LINK.ADVProgram;
+using LINK.ADVProgram.Inner.Sound;
 using LINK.ADVProgram.Inner.UI;
 using LINK.Battle;
 using LINK.TestMode;
@@ -279,6 +280,15 @@ namespace SwordArtOffline.Patches.Game {
 
         [HarmonyPrefix, HarmonyPatch(typeof(MenuUILocalData), "IsShopUsed", MethodType.Getter)]
         static bool IsShopUsed(ref bool __result) {
+            if (Plugin.ConfigRepeatMenuSections.Value) {
+                __result = false;
+                return false;
+            }
+            return true;
+        }
+
+        [HarmonyPrefix, HarmonyPatch(typeof(MenuUILocalData), "IsUsedTicketInCustomMenu", MethodType.Getter)]
+        static bool IsUsedTicketInCustomMenu(ref bool __result) {
             if (Plugin.ConfigRepeatMenuSections.Value) {
                 __result = false;
                 return false;
@@ -728,6 +738,9 @@ namespace SwordArtOffline.Patches.Game {
 
 
         // fix autotranslate
+
+        private static bool pushWaitTimer;
+
         [HarmonyPrefix, HarmonyPriority(Priority.HigherThanNormal), HarmonyPatch(typeof(ADVNovelText), "Update")]
         static bool Update(ADVNovelText __instance) {
             if (!__instance.System.IsInitComplete) {
@@ -757,7 +770,7 @@ namespace SwordArtOffline.Patches.Game {
                     page.LastInputSendMessage = false;
                     page.Contoller.Clear();
                     page.Contoller.IsWaitInput = false;
-                    page.Engine.Config.autoPageWaitSecMax = 5F; // this doesn't seem to do anything
+                    pushWaitTimer = true;
                 }
 
                 page.CurrentTextLengthMax = currentText.Length;
@@ -768,6 +781,18 @@ namespace SwordArtOffline.Patches.Game {
 
             return false;
         }
+
+        [HarmonyPostfix, HarmonyPatch(typeof(AdvCommandWaitInput), "IsWaitng")]
+        static void IsWaitng(ref AdvCommandWaitInput __instance, AdvEngine engine) {
+            if (pushWaitTimer) {
+                __instance.pauseTime += 1F;
+                pushWaitTimer = false;
+            }
+            if (Plugin.ConfigDisableTextAutoAdvance.Value) {
+                __instance.pauseTime += Time.deltaTime;
+            }
+        }
+
 
         // fix buttons
         [HarmonyPostfix, HarmonyPriority(Priority.HigherThanNormal), HarmonyPatch(typeof(ADVSelection), "Init")]
@@ -782,6 +807,16 @@ namespace SwordArtOffline.Patches.Game {
 
             __instance.text.SetText(text);
             __instance.text.text = text; // this is needed otherwise 25 characters...?
+        }
+
+        // crashfix?
+        [HarmonyPrefix, HarmonyPatch(typeof(ADVAudio), "IsPlaying", new Type[0])]
+        static bool IsPlaying(ref ADVAudio __instance, ref bool __result) {
+            if (__instance.PlayBack == null || __instance.PlayBack.Data == null) {
+                __result = false;
+                return false;
+            }
+            return true;
         }
     }
 }

@@ -12,6 +12,8 @@ using Artdink.StaticData;
 using TMPro;
 using UnityEngine.UI;
 using static LINK.UI.CommonUI_GashaMenuDataManager;
+using Utage;
+using LINK.ADVProgram.Inner.UI;
 
 namespace SwordArtOffline.Patches.Game {
     public class DebugPatchesGame {
@@ -257,6 +259,51 @@ namespace SwordArtOffline.Patches.Game {
             return false;
 
         }
-        
+
+        /*[HarmonyPrefix, HarmonyPatch(typeof(ADVUIManager), "Update")]
+        static bool Update(ref ADVUIManager __instance) {
+            Plugin.Log.LogDebug("State=" + __instance.status);
+            Plugin.Log.LogDebug("Page State=" + __instance.Engine.Page.status);
+            __instance.disableMouseWheelBackLog = false;
+            return true;
+        }
+
+        [HarmonyPrefix, HarmonyPatch(typeof(AdvPage), "Status", MethodType.Setter)]
+        static bool Status(ref AdvPage __instance, AdvPage.PageStatus value) {
+            Plugin.Log.LogDebug("STATUS SET FROM " + __instance.status + " -> " + value);
+            Plugin.Log.LogDebug(Environment.StackTrace);
+            return true;
+        }*/
+
+        /*[HarmonyPrefix, HarmonyPatch(typeof(AdvScenarioPlayer), "StartScenario")]
+        static bool StartScenario(ref AdvScenarioPlayer __instance, string label, int page) {
+            __instance.debugOutPut = AdvScenarioPlayer.DebugOutPut.Log | AdvScenarioPlayer.DebugOutPut.Waiting | AdvScenarioPlayer.DebugOutPut.CommandEnd;
+            Plugin.Log.LogWarning("StartScenario");
+            return true;
+        }*/
+
+        /*[HarmonyPrefix, HarmonyPriority(Priority.HigherThanNormal), HarmonyPatch(typeof(AdvPage), "UpdateWaitInput")]
+        static bool UpdateWaitInput(ref AdvPage __instance) {
+            Plugin.Log.LogDebug("time: " + __instance.waitingTimeInput + " >= " + __instance.Engine.Config.AutoPageWaitTime);
+            if (__instance.Engine.Config.IsAutoBrPage && !__instance.Engine.SoundManager.IsPlayingVoice() && __instance.waitingTimeInput >= __instance.Engine.Config.AutoPageWaitTime) {
+                __instance.ToNextCommand();
+                return false;
+            }
+            if (__instance.IsInputSendMessage()) {
+                if (__instance.isInputSendMessage) {
+                    __instance.OnTrigInput.Invoke(__instance);
+                }
+                if (__instance.Engine.Config.VoiceStopType == VoiceStopType.OnClick) {
+                    __instance.Engine.SoundManager.StopVoiceIgnoreLoop();
+                }
+                __instance.ToNextCommand();
+                return false;
+            }
+            if (!__instance.Engine.Config.IsAutoBrPage || !__instance.Engine.SoundManager.IsPlayingVoice()) {
+                __instance.waitingTimeInput += Time.deltaTime;
+            }
+            return false;
+        }*/
+
     }
 }
