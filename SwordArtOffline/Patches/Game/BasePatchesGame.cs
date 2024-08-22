@@ -809,10 +809,21 @@ namespace SwordArtOffline.Patches.Game {
             __instance.text.text = text; // this is needed otherwise 25 characters...?
         }
 
+        [HarmonyPrefix, HarmonyPatch(typeof(AdvPage), "UpdateSendChar")]
+        static bool UpdateSendChar(AdvPage __instance) {
+            if (__instance.CurrentTextLength < 0 || __instance.CurrentTextLength >= __instance.TextData.ParsedText.CharList.Count) {
+                //Plugin.Log.LogWarning("Fixed crash? UpdateSendChar text length = " + __instance.CurrentTextLength);
+                __instance.EndSendChar();
+                return false;
+            }
+            return true;
+        }
+
         // crashfix?
         [HarmonyPrefix, HarmonyPatch(typeof(ADVAudio), "IsPlaying", new Type[0])]
         static bool IsPlaying(ref ADVAudio __instance, ref bool __result) {
             if (__instance.PlayBack == null || __instance.PlayBack.Data == null) {
+                //Plugin.Log.LogWarning("Fixed a crash? ADVAudio.IsPlaying");
                 __result = false;
                 return false;
             }
