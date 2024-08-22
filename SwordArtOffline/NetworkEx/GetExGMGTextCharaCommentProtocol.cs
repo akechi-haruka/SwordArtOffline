@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 
 namespace SwordArtOffline.NetworkEx {
-    internal class GetExGMGTextCharaCommentProtocol : GetExGMGProtocol<StaticTextCommonDataManager, StaticTextData> {
+    internal class GetExGMGTextCharaCommentProtocol : GetExGMGProtocol<StaticTextCharaCommentDataManager, StaticTextData> {
         protected override string GetURL() {
             return "master_data_ex/get_m_ex_gmg_textcharacomment";
         }
