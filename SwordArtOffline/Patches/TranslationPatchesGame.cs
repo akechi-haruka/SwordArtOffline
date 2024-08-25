@@ -159,5 +159,55 @@ IL_019D:
             }
         }
 
+        [HarmonyPostfix, HarmonyPatch(typeof(UIResultRankIn), "SetInfoText")]
+        static string SetInfoText(UIResultRankIn __instance, ref string __result) {
+            if (!Plugin.ConfigHardTranslations.Value) {
+                return __result;
+            }
+            string text = string.Empty;
+            __instance.UpdateFlag();
+            int num = 0;
+            if (UserDataManager.Instance.QuestTrialTowerUpdatedNotificationData.StoreBestScoreClearTimeFlag) {
+                text = text + "New best shop score! -Clear Time-\n";
+                num++;
+            }
+            if (UserDataManager.Instance.QuestTrialTowerUpdatedNotificationData.StoreBestScoreComboNumFlag) {
+                text = text + "New best shop score! -Max Combo-\n";
+                num++;
+            }
+            if (UserDataManager.Instance.QuestTrialTowerUpdatedNotificationData.StoreBestScoreConcurrentDestroyingNumFlag) {
+                text = text + "New best shop score! -Concurrent Kills-\n";
+                num++;
+            }
+            if (UserDataManager.Instance.QuestTrialTowerUpdatedNotificationData.StoreBestScoreTotalDamageFlag) {
+                text = text + "New best shop score! -Total Damage-\n";
+                num++;
+            }
+            if (num != 0) {
+                text += "Scores updated! \n \n";
+                num += 2;
+            }
+            if (UserDataManager.Instance.QuestTrialTowerUpdatedNotificationData.StoreReachingTrialTowerRank > 0) {
+                int storeReachingTrialTowerRank = UserDataManager.Instance.QuestTrialTowerUpdatedNotificationData.StoreReachingTrialTowerRank;
+                text += string.Format("Reached shop rank {0} for this floor!\n", storeReachingTrialTowerRank);
+                num += 2;
+            }
+            if (UserDataManager.Instance.QuestExTowerUpdatedNotificationData.StoreReachingLevelNumRank > 0) {
+                int storeReachingLevelNumRank = UserDataManager.Instance.QuestExTowerUpdatedNotificationData.StoreReachingLevelNumRank;
+                text += string.Format("Reached shop rank {0} for this EX floor!\n", storeReachingLevelNumRank);
+                num += 2;
+            }
+            if (UserDataManager.Instance.QuestTrialTowerUpdatedNotificationData.StoreBestScoreClearTimeFlag || UserDataManager.Instance.QuestTrialTowerUpdatedNotificationData.StoreBestScoreComboNumFlag || UserDataManager.Instance.QuestTrialTowerUpdatedNotificationData.StoreBestScoreConcurrentDestroyingNumFlag || UserDataManager.Instance.QuestTrialTowerUpdatedNotificationData.StoreBestScoreTotalDamageFlag || UserDataManager.Instance.QuestTrialTowerUpdatedNotificationData.StoreReachingTrialTowerRank > 0 || UserDataManager.Instance.QuestExTowerUpdatedNotificationData.StoreReachingLevelNumRank > 0) {
+                text += "Check results on the Fencer's Obelisk! \n";
+                num++;
+            }
+            if (num > 0) {
+                for (int i = 0; i < num; i++) {
+                    text += "☆";
+                }
+            }
+            return text;
+        }
+
     }
 }
