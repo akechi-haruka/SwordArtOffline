@@ -183,7 +183,7 @@ namespace SwordArtOffline {
 
             CardID = Config.Bind("Card", "Access Code", "0000000000000000", "Aime access code of your card");
             ConfigNetworkEncryption = Config.Bind("Network", "Encryption", false, "Enable network encryption again if your server requires it");
-            ConfigNetworkMatchingIP = Config.Bind("Network", "Matching Server IP", "", "Set the matching server IP");
+            ConfigNetworkMatchingIP = Config.Bind("Network", "Matching Server IP", "", "Set the matching server IP. If the server supports exdata, this setting is not needed.");
             ConfigPhotonLogging = Config.Bind("Network", "Matching Server Logging", false, new ConfigDescription("Photon Server packet logging, only useful for debugging issues with the photon emulator", null, new ConfigurationManagerAttributes { IsAdvanced = true }));
             ConfigMoveToFrontOnStart = Config.Bind("General", "Move to front on start", true, "Moves the game window to the foreground on startup");
             ConfigShowCursor = Config.Bind("General", "Show Mouse Cursor", true, "Shows the mouse cursor. Disable if using touchscreen.");
