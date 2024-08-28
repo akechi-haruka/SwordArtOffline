@@ -49,7 +49,7 @@ namespace SwordArtOffline.Patches.Game {
         [HarmonyPostfix, HarmonyPatch(typeof(CommonUI_treasure), "init")]
         static void OnInitPrefab(CommonUI_treasure __instance, int CounterNum, float gaugeFill) {
 
-            if (Plugin.ConfigUIShowMinimap.Value == Plugin.MinimapUILayout.HideMinimapAndMoveBonus && !QuestManager.Instance.IsTutorialQuest) {
+            if (Plugin.ConfigUIShowMinimap.Value == Plugin.MinimapUILayout.HideMinimapAndMoveBonus && !QuestManager.Instance.IsTutorialQuest && !QuestManager.IsVsMode) {
                 Vector3 vec = __instance.Debris_obj.localPosition;
                 __instance.Debris_obj.localPosition = new Vector3(vec.x, vec.y + 100, vec.z);
             }
@@ -61,7 +61,7 @@ namespace SwordArtOffline.Patches.Game {
 
             Transform t = __instance.exBonusCanvas.gameObject.FindChild("BonusWindow")?.transform;
 
-            if (Plugin.ConfigUIShowMinimap.Value == Plugin.MinimapUILayout.HideMinimapAndMoveBonus && t?.localPosition.y < 200 && HudBonusMissionUtils.IsVisible && !QuestManager.Instance.IsTutorialQuest) {
+            if (Plugin.ConfigUIShowMinimap.Value == Plugin.MinimapUILayout.HideMinimapAndMoveBonus && t?.localPosition.y < 200 && HudBonusMissionUtils.IsVisible && !QuestManager.Instance.IsTutorialQuest && !QuestManager.IsVsMode) {
                 Vector3 vec = t.localPosition;
                 t.localPosition = new Vector3(vec.x, vec.y + 380, vec.z);
                 Plugin.Log.LogDebug("moved to " + t.localPosition);
@@ -71,7 +71,7 @@ namespace SwordArtOffline.Patches.Game {
         [HarmonyPrefix, HarmonyPatch(typeof(CommonUI_mapControl), "SetDisplay")]
         static bool SetDisplay(CommonUI_mapControl __instance, bool dispUI) {
 
-            if (Plugin.ConfigUIShowMinimap.Value != Plugin.MinimapUILayout.Normal && !QuestManager.Instance.IsTutorialQuest) {
+            if (Plugin.ConfigUIShowMinimap.Value != Plugin.MinimapUILayout.Normal && !QuestManager.Instance.IsTutorialQuest && !QuestManager.IsVsMode) {
                 return false;
             }
 
@@ -81,7 +81,7 @@ namespace SwordArtOffline.Patches.Game {
 
         [HarmonyPostfix, HarmonyPatch(typeof(DebrisParticleControll), MethodType.Constructor, typeof(Transform))]
         static void DebrisParticleControllCtor(DebrisParticleControll __instance, Transform rootTransform) {
-            if (Plugin.ConfigUIShowMinimap.Value == Plugin.MinimapUILayout.HideMinimapAndMoveBonus && !QuestManager.Instance.IsTutorialQuest) {
+            if (Plugin.ConfigUIShowMinimap.Value == Plugin.MinimapUILayout.HideMinimapAndMoveBonus && !QuestManager.Instance.IsTutorialQuest && !QuestManager.IsVsMode) {
                 Vector3 vec = __instance.m_TargetTransform.localPosition;
                 __instance.m_TargetTransform.localPosition = new Vector3(vec.x, vec.y + 100, vec.z);
             }
