@@ -560,12 +560,9 @@ namespace SwordArtOffline.Patches.Game {
                     ((GetMasterDataProtocolBase)protocol).SetupResponseData();
                 }
 
-                List<StaticEventData> list = (from d in CommonManager<StaticEventDataManager, StaticEventData>.GetInstance()
-                                              where d.EventType == 137
-                                              orderby d.OpenEndDate descending
-                                              select d).ToList();
-                foreach (StaticEventData ev in list) {
-                    if (ev.OpenStartDate <= DateTime.Now && DateTime.Now <= ev.OpenEndDate) {
+                foreach (StaticEventData ev in CommonManager<StaticEventDataManager, StaticEventData>.GetInstance()) {
+
+                    if (ev.EventType == 37 && ev.OpenStartDate <= DateTime.Now && DateTime.Now <= ev.OpenEndDate) {
                         if (ev.Title == "HARUKA_GMG_EX_MATCHING_SERVER_IP") {
                             if (ev.Param3 != "0") {
                                 MatchingPatchesGame.ExMatchingIP = ev.Param1;
@@ -573,9 +570,9 @@ namespace SwordArtOffline.Patches.Game {
                             }
                         } else if (ev.Title == "HARUKA_GMG_EX_EXP_FILE_ASM") {
                             // flag unclean dlls when reporting issues
-                            string local = Plugin.Md5("link_Data/Managed/" + ev.Param1);
+                            string local = Plugin.Md5("link_Data/Managed/" + ev.Param1) ?? Plugin.Md5("game/link_Data/Managed/" + ev.Param1);
                             if (local != ev.Param2) {
-                                Plugin.Log.LogWarning("EX_FILE_ASM FAILED: " + local);
+                                Plugin.Log.LogWarning("EXP_FILE_ASM FAILED (" + ev.Param1 + "): " + local);
                             }
                         } else {
                             Plugin.Log.LogWarning("Unknown EX Event: " + ev.EventId + "/" + ev.Title);
