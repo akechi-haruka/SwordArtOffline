@@ -20,6 +20,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Threading;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -603,6 +604,18 @@ namespace SwordArtOffline {
             keychip = id;
             keychipA = Marshal.StringToHGlobalAnsi(id);
             keychipU = Marshal.StringToHGlobalUni(id);
+        }
+
+        public static string Md5(string filename) {
+            if (!File.Exists(filename)) {
+                return null;
+            }
+            using (var md5 = MD5.Create()) {
+                using (var stream = File.OpenRead(filename)) {
+                    var hash = md5.ComputeHash(stream);
+                    return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+                }
+            }
         }
     }
 }

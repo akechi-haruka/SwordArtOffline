@@ -6,6 +6,8 @@ using System.Text;
 
 namespace SwordArtOffline.Patches.Game {
     public class MatchingPatchesGame {
+        public static string ExMatchingIP { get; internal set; }
+        public static int ExMatchingPort { get; internal set; }
 
         [HarmonyPrefix, HarmonyPatch(typeof(PhotonNetwork), "ConnectUsingSettings")]
         static bool ConnectUsingSettings(string gameVersion) {
@@ -17,6 +19,11 @@ namespace SwordArtOffline.Patches.Game {
                 PhotonNetwork.PhotonServerSettings.HostType = ServerSettings.HostingOption.SelfHosted;
                 PhotonNetwork.PhotonServerSettings.ServerAddress = matchingIP;
                 Plugin.Log.LogMessage("Matching Server IP: " + matchingIP);
+            } else if (!String.IsNullOrEmpty(ExMatchingIP) && ExMatchingPort != 0) {
+                PhotonNetwork.PhotonServerSettings.HostType = ServerSettings.HostingOption.SelfHosted;
+                PhotonNetwork.PhotonServerSettings.ServerAddress = ExMatchingIP;
+                PhotonNetwork.PhotonServerSettings.ServerPort = ExMatchingPort;
+                Plugin.Log.LogMessage("Matching Server IP (from exdata): " + ExMatchingIP + ":" + ExMatchingPort);
             }
             return true;
         }
