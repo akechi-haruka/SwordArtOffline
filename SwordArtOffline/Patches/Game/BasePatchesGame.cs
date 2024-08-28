@@ -54,6 +54,7 @@ namespace SwordArtOffline.Patches.Game {
             if (err == SystemErrorCode.SEC_SPEC_DONGLE) {
                 return false;
             }
+            //Plugin.Log.LogDebug("OccurredError: " + err + " from " + Environment.StackTrace);
             return true;
         }
 
@@ -542,6 +543,7 @@ namespace SwordArtOffline.Patches.Game {
                     typeof(GetExGMGFixedFormChatProtocol),
                     typeof(GetExGMGFixedFormChatTextProtocol),
                     typeof(GetExGMGDefragMatchChatProtocol),
+                    typeof(GetExGMGOberonMedalGetConditionProtocol)
                 };
                 foreach (Type ex in exDataProtocolTypes) {
                     NetworkManageComponent protocol = NetworkProtocolManager.SendRequest(ex, true);

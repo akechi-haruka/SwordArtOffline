@@ -66,7 +66,7 @@
   </ItemGroup>
   
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="copy /Y bin\Debug\net35\SwordArtOffline.dll L:\SDVX\sao\game\BepInEx\plugins\SwordArtOffline\&#xD;&#xA;copy /Y bin\Debug\net35\Sega835Lib.dll L:\SDVX\sao\game\BepInEx\plugins\SwordArtOffline\&#xD;&#xA;copy /Y bin\Debug\net35\SwordArtOffline.dll L:\SDVX\sao\notice\BepInEx\plugins\&#xD;&#xA;copy /Y bin\Debug\net35\SwordArtOffline.dll L:\SDVX\sao\testmode\BepInEx\plugins\" />
+    <Exec Command="copy /Y bin\Debug\net35\SwordArtOffline.dll L:\SDVX\sao\game\BepInEx\plugins\SwordArtOffline\&#xD;&#xA;copy /Y bin\Debug\net35\Sega835Lib.dll L:\SDVX\sao\game\BepInEx\plugins\SwordArtOffline\&#xD;&#xA;copy /Y bin\Debug\net35\SwordArtOffline.dll L:\SDVX\sao_releaze\game\BepInEx\plugins\SwordArtOffline\&#xD;&#xA;copy /Y bin\Debug\net35\Sega835Lib.dll L:\SDVX\sao_releaze\game\BepInEx\plugins\SwordArtOffline\&#xD;&#xA;copy /Y bin\Debug\net35\SwordArtOffline.dll L:\SDVX\sao\notice\BepInEx\plugins\&#xD;&#xA;copy /Y bin\Debug\net35\SwordArtOffline.dll L:\SDVX\sao\testmode\BepInEx\plugins\" />
   </Target>
   
   <ItemGroup>

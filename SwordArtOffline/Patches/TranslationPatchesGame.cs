@@ -160,9 +160,9 @@ IL_019D:
         }
 
         [HarmonyPostfix, HarmonyPatch(typeof(UIResultRankIn), "SetInfoText")]
-        static string SetInfoText(UIResultRankIn __instance, ref string __result) {
+        static void SetInfoText(UIResultRankIn __instance, ref string __result) {
             if (!Plugin.ConfigHardTranslations.Value) {
-                return __result;
+                return;
             }
             string text = string.Empty;
             __instance.UpdateFlag();
@@ -206,7 +206,7 @@ IL_019D:
                     text += "☆";
                 }
             }
-            return text;
+            __result = text;
         }
 
     }
