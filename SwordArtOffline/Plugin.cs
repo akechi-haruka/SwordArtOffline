@@ -9,12 +9,14 @@ using Haruka.Arcade.SEGA835Lib.Devices.Card;
 using Haruka.Arcade.SEGA835Lib.Devices.Card._837_15396;
 using Haruka.Arcade.SEGA835Lib.Devices.IO;
 using Haruka.Arcade.SEGA835Lib.Devices.IO._835_15257_01;
+using Haruka.Arcade.SEGA835Lib.Devices.LED._837_15093;
 using LINK;
 using LINK.UI;
 using SwordArtOffline.Patches;
 using SwordArtOffline.Patches.Game;
 using SwordArtOffline.Patches.Notice;
 using SwordArtOffline.Patches.Shared;
+using SwordArtOffline.Patches.Testmode;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -108,6 +110,11 @@ namespace SwordArtOffline {
         public static ConfigEntry<int> ConfigIO4AxisYMin;
         public static ConfigEntry<int> ConfigIO4AxisYMax;
         public static ConfigEntry<bool> ConfigDisableTextAutoAdvance;
+        public static ConfigEntry<int> Config15093Port;
+        public static ConfigEntry<int> ConfigLEDBoardAddr;
+        public static ConfigEntry<int> ConfigLEDHostAddr;
+        public static ConfigEntry<bool> ConfigLogSegaLibMessages;
+
         private static String keychip;
         private static IntPtr keychipA = IntPtr.Zero;
         private static IntPtr keychipU = IntPtr.Zero;
@@ -115,8 +122,10 @@ namespace SwordArtOffline {
         public static AimeCardReader_837_15396 Aime;
         public static bool AimeConnected;
         public static IO4USB_835_15257_01 Io4;
+        public static LED_837_15093_06 Led;
         public static bool IoConnected;
         public static JVSUSBReportIn? IoReport;
+        public static bool LedConnected;
 
         public enum MouseButtonControl {
             Off, LeftMouseButton, RightMouseButton
@@ -136,9 +145,10 @@ namespace SwordArtOffline {
         public static bool TestSwitchIsToggle;
         public static bool TestSwitchState;
         public static ManualLogSource Log;
+        internal static byte[] ledStatus = new byte[255];
+        private static Plugin instance;
         private bool hasMovedFront;
         private bool runGameUpdate;
-        private static Plugin instance;
 
         public void Awake() {
 
@@ -217,6 +227,7 @@ namespace SwordArtOffline {
             ConfigPrinterCleanOnStart = Config.Bind("Terminal", "Clean Printer Directory On Start", false, "If enabled, the contents of the printer directory will be emptied on start.");
             ConfigPrinterHolo = Config.Bind("Terminal", "Print Holo Layer", true, "If enabled, the holo layer will also be saved as a seperate file.");
 
+            ConfigLogSegaLibMessages = Config.Bind("Real Hardware", "Activate Logging", false, "Enables Sega835Lib log messages. If LEDs are enabled, this can become quite busy.");
             ConfigAimeReaderPort = Config.Bind("Real Hardware", "Aime Reader Port", 0, "Port for a 837-15396 Aime card reader (0 to disable)");
             ConfigUseIO4Stick = Config.Bind("Real Hardware", "Enable IO4", false, "Connects to a IO4 board");
             ConfigIO4AxisX = Config.Bind("Real Hardware", "X Axis ADC", 0, "The ADC to use for X axis input");
@@ -231,6 +242,9 @@ namespace SwordArtOffline {
             ConfigAttackButtonLed = Config.Bind("Real Hardware", "IO4 Attack LED 1", 0, "The LED for the Attack 1 button on an IO4");
             ConfigAttackButtonLed2 = Config.Bind("Real Hardware", "IO4 Attack LED 2", 0, "The LED for the Attack 2 button on an IO4");
             ConfigAttackButtonLed3 = Config.Bind("Real Hardware", "IO4 Attack LED 3", 0, "The LED for the Attack 3 button on an IO4");
+            Config15093Port = Config.Bind("Real Hardware", "837-15093-06 LED Board Port", 0, "The Port for a SEGA 837-15093-06 LED board (0 to disable, for LED mappings see readme)");
+            ConfigLEDHostAddr = Config.Bind("Real Hardware", "LED Host Address", 2, new ConfigDescription("LED Board host address", null, new ConfigurationManagerAttributes { IsAdvanced = true }));
+            ConfigLEDBoardAddr = Config.Bind("Real Hardware", "LED Board Address", 1, new ConfigDescription("LED Board own address", null, new ConfigurationManagerAttributes { IsAdvanced = true }));
 
             string exe = Environment.CurrentDirectory.Split('\\').Last();
             Logger.LogDebug("Game = " + exe);
@@ -260,6 +274,7 @@ namespace SwordArtOffline {
             }
             if (exe == "testmode") {
                 Harmony.CreateAndPatchAll(typeof(KeychipPatchesNoticeAndTest), "eu.haruka.gmg.sao.fixes.notice.keychip");
+                Harmony.CreateAndPatchAll(typeof(IOPatchesTest), "eu.haruka.gmg.sao.fixes.testmode.io");
                 TestSwitchIsToggle = true;
                 TestSwitchState = true;
             }
@@ -310,6 +325,17 @@ namespace SwordArtOffline {
                     Log.LogMessage("IO4 connection failed: " + ret);
                 }
             }
+            if (Config15093Port.Value > 0) {
+                Log.LogInfo("Connecting to LED");
+                Led = new LED_837_15093_06(Config15093Port.Value, (byte)ConfigLEDHostAddr.Value, (byte)ConfigLEDBoardAddr.Value);
+                DeviceStatus ret = Led.Connect();
+                LedConnected = ret == DeviceStatus.OK;
+                if (LedConnected) {
+                    Led.SetResponseDisabled(true);
+                } else {
+                    Log.LogMessage("LED connection failed: " + ret);
+                }
+            }
 
             BaseUnityPlugin emoneyuilink = Chainloader.Plugins.Find(p => p.Info.Metadata.GUID == "eu.haruka.gmg.apm.emoneyuilink");
             if (emoneyuilink != null) {
@@ -342,7 +368,9 @@ namespace SwordArtOffline {
         }
 
         private void Log_LogMessageWritten(Haruka.Arcade.SEGA835Lib.Debugging.LogEntry obj) {
-            Logger.LogInfo("Sega835Lib: " + obj.Message);
+            if (Plugin.ConfigLogSegaLibMessages.Value) {
+                Logger.LogInfo("Sega835Lib: " + obj.Message);
+            }
         }
 
         private void SceneManager_activeSceneChanged(Scene arg0, Scene arg1) {

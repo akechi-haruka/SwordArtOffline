@@ -1,10 +1,9 @@
 ﻿using Artdink.Native;
 using Artdink.StaticData;
-using ExitGames.Client.Photon;
 using GssSiteSystem;
 using HarmonyLib;
+using Haruka.Arcade.SEGA835Lib.Devices;
 using LINK;
-using LINK.ADVProgram;
 using LINK.ADVProgram.Inner.Sound;
 using LINK.ADVProgram.Inner.UI;
 using LINK.Battle;
@@ -14,9 +13,6 @@ using SwordArtOffline.NetworkEx;
 using SwordArtOffline.Patches.Shared;
 using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading;
@@ -29,6 +25,7 @@ namespace SwordArtOffline.Patches.Game {
     extern alias AssemblyNotice;
     using static bnAMUpdater;
     using static GssSiteSystem.GameConnect;
+    using Color = Haruka.Arcade.SEGA835Lib.Misc.Color;
 
     public class BasePatchesGame {
         public static bool RetryNetworkFlag { get; internal set; }
@@ -738,14 +735,11 @@ namespace SwordArtOffline.Patches.Game {
             }
         }
 
-        private static byte[] ledStatus = new byte[255];
-
         [HarmonyPrefix, HarmonyPatch(typeof(BNUsio), "SetGout")]
         static bool SetGout(byte in_ucChannel, byte in_ucValue, ref int __result) {
             if (Plugin.Io4 != null && Plugin.IoConnected) {
-                if (ledStatus[in_ucChannel] != in_ucValue) {
-                    //Plugin.Log.LogDebug("LED: " + in_ucChannel + " -> " + in_ucValue);
-                    ledStatus[in_ucChannel] = in_ucValue;
+                if (Plugin.ledStatus[in_ucChannel] != in_ucValue) {
+                    Plugin.ledStatus[in_ucChannel] = in_ucValue;
                     if (in_ucChannel == 1 && Plugin.ConfigAttackButtonLed.Value > 0) {
                         Plugin.Io4.SetGPIO(Plugin.ConfigAttackButtonLed.Value, in_ucValue > 0);
                     } else if (in_ucChannel == 2 && Plugin.ConfigAttackButtonLed2.Value > 0) {

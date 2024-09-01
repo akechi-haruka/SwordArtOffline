@@ -2,6 +2,7 @@
 using BepInEx.Configuration;
 using HarmonyLib;
 using Haruka.Arcade.SEGA835Lib.Debugging;
+using Haruka.Arcade.SEGA835Lib.Devices;
 using Haruka.Arcade.SEGA835Lib.Devices.IO;
 using LINK;
 using LINK.Battle;
@@ -100,6 +101,25 @@ namespace SwordArtOffline.Patches.Shared {
             __instance.SetLEDDirect(__instance.lockGOUT, (byte)((!__instance.coinLock) ? 1 : 0));
 
             return false;
+        }
+
+
+
+        [HarmonyPostfix, HarmonyPatch(typeof(BnamPeripheral), "LEDTask")]
+        static void LEDTask() {
+            if (Plugin.Led != null && Plugin.LedConnected) {
+                DeviceStatus ret = Plugin.Led.SetLEDs(new Haruka.Arcade.SEGA835Lib.Misc.Color[] {
+                    Haruka.Arcade.SEGA835Lib.Misc.Color.FromArgb(Plugin.ledStatus[13], Plugin.ledStatus[12], Plugin.ledStatus[14]),
+                    Haruka.Arcade.SEGA835Lib.Misc.Color.FromArgb(Plugin.ledStatus[7], Plugin.ledStatus[6], Plugin.ledStatus[8]),
+                    Haruka.Arcade.SEGA835Lib.Misc.Color.FromArgb(Plugin.ledStatus[15], Plugin.ledStatus[15], Plugin.ledStatus[15]),
+                    Haruka.Arcade.SEGA835Lib.Misc.Color.FromArgb(Plugin.ledStatus[10], Plugin.ledStatus[9], Plugin.ledStatus[11]),
+                    Haruka.Arcade.SEGA835Lib.Misc.Color.FromArgb(Plugin.ledStatus[16], Plugin.ledStatus[16], Plugin.ledStatus[16])
+                });
+                if (ret != DeviceStatus.OK) {
+                    Plugin.Log.LogError("LED write error: " + ret);
+                    Plugin.LedConnected = false;
+                }
+            }
         }
 
         private static float map(float x, float in_min, float in_max, float out_min, float out_max) {
