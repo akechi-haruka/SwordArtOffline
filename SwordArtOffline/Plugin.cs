@@ -114,6 +114,7 @@ namespace SwordArtOffline {
         public static ConfigEntry<int> ConfigLEDBoardAddr;
         public static ConfigEntry<int> ConfigLEDHostAddr;
         public static ConfigEntry<bool> ConfigLogSegaLibMessages;
+        public static ConfigEntry<int> ConfigNoticeJapanTimer;
 
         private static String keychip;
         private static IntPtr keychipA = IntPtr.Zero;
@@ -218,6 +219,7 @@ namespace SwordArtOffline {
             ConfigTimeExtend = Config.Bind("General", "Timer Extension", false, "Increases main menu time limits.");
             ConfigAutoContinueMode = Config.Bind("General", "Auto-Continue", AutoContinueMode.Off, "Automatically continues if you die.");
             ConfigForceCamera = Config.Bind("General", "Force Camera", "", "Forces a specific camera name to be used. This can be used to ignore virtual cameras. Leave blank to disable.");
+            ConfigNoticeJapanTimer = Config.Bind("General", "Japan Warning Timer", 10, "Sets the time (in seconds) that the \"Only use in Japan\" warning is displayed on startup.");
 
             ConfigAllowTerminalSwitch = Config.Bind("Terminal", "Terminal/Station Switcher", true, "If selecting NO on the LOG OUT prompt, gives an option to switch between terminal/station.");
             ConfigPrinterDirectory = Config.Bind("Terminal", "Printer Directory", "../nvram/print", "The directory where printed cards are written to");
@@ -271,6 +273,7 @@ namespace SwordArtOffline {
                 Harmony.CreateAndPatchAll(typeof(KeychipPatchesNoticeAndTest), "eu.haruka.gmg.sao.fixes.notice.keychip");
                 Harmony.CreateAndPatchAll(typeof(CardPatchesNotice), "eu.haruka.gmg.sao.fixes.notice.bngrw");
                 Harmony.CreateAndPatchAll(typeof(BNAMPFPatchesNotice), "eu.haruka.gmg.sao.fixes.notice.oomph");
+                Harmony.CreateAndPatchAll(typeof(MiscPatchesNotice), "eu.haruka.gmg.sao.fixes.notice.misc");
             }
             if (exe == "testmode") {
                 Harmony.CreateAndPatchAll(typeof(KeychipPatchesNoticeAndTest), "eu.haruka.gmg.sao.fixes.notice.keychip");
