@@ -4,9 +4,11 @@ using HarmonyLib;
 using Haruka.Arcade.SEGA835Lib.Debugging;
 using Haruka.Arcade.SEGA835Lib.Devices;
 using Haruka.Arcade.SEGA835Lib.Devices.IO;
+using Haruka.Arcade.SEGA835Lib.Misc;
 using LINK;
 using LINK.Battle;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using UnityEngine;
@@ -118,6 +120,17 @@ namespace SwordArtOffline.Patches.Shared {
                 if (ret != DeviceStatus.OK) {
                     Plugin.Log.LogError("LED write error: " + ret);
                     Plugin.LedConnected = false;
+                }
+                if (Plugin.ConfigCameraLEDToAux1.Value > 0) {
+                    List<Haruka.Arcade.SEGA835Lib.Misc.Color> list = new List<Haruka.Arcade.SEGA835Lib.Misc.Color>();
+                    for (int i = 0; i < Plugin.ConfigCameraLEDToAux1.Value; i++) {
+                        list.Add(Haruka.Arcade.SEGA835Lib.Misc.Color.FromArgb(Plugin.ledStatus[16], Plugin.ledStatus[16], Plugin.ledStatus[16]));
+                    }
+                    ret = Plugin.Led.SetAuxiliaryLEDs(list);
+                    if (ret != DeviceStatus.OK) {
+                        Plugin.Log.LogError("LED write error (aux): " + ret);
+                        Plugin.LedConnected = false;
+                    }
                 }
             }
         }

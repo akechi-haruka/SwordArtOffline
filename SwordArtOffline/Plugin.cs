@@ -10,6 +10,7 @@ using Haruka.Arcade.SEGA835Lib.Devices.Card._837_15396;
 using Haruka.Arcade.SEGA835Lib.Devices.IO;
 using Haruka.Arcade.SEGA835Lib.Devices.IO._835_15257_01;
 using Haruka.Arcade.SEGA835Lib.Devices.LED._837_15093;
+using Haruka.Arcade.SEGA835Lib.Devices.LED.MONKEY06;
 using LINK;
 using LINK.UI;
 using SwordArtOffline.Patches;
@@ -115,6 +116,8 @@ namespace SwordArtOffline {
         public static ConfigEntry<int> ConfigLEDHostAddr;
         public static ConfigEntry<bool> ConfigLogSegaLibMessages;
         public static ConfigEntry<int> ConfigNoticeJapanTimer;
+        public static ConfigEntry<bool> ConfigMassSell;
+        public static ConfigEntry<int> ConfigCameraLEDToAux1;
 
         private static String keychip;
         private static IntPtr keychipA = IntPtr.Zero;
@@ -123,7 +126,7 @@ namespace SwordArtOffline {
         public static AimeCardReader_837_15396 Aime;
         public static bool AimeConnected;
         public static IO4USB_835_15257_01 Io4;
-        public static LED_837_15093_06 Led;
+        public static LED_MONKEY06 Led;
         public static bool IoConnected;
         public static JVSUSBReportIn? IoReport;
         public static bool LedConnected;
@@ -201,6 +204,7 @@ namespace SwordArtOffline {
             ConfigShowMenuKeybinds = Config.Bind("General", "Show Keybindings on Startup", true, "Shows the most important keybindings when the game starts up (if MessageCenter is active)");
             ConfigHardTranslations = Config.Bind("General", "Hard Translations", true, "Translates some hard-coded strings to English");
             ConfigDisableTextAutoAdvance = Config.Bind("General", "Disable Text Auto-Advance", false, "During cutscenes, disable text auto-advancing");
+            ConfigMassSell = Config.Bind("General", "Raise Selling Cap", true, "Allows you to sell 99 items at a time instead of 20. Change requires restart.");
 
             ConfigButtonRetryNetworkImmediately = Config.Bind(SEC_BUTTONS, "Immediate Network Retry", new KeyboardShortcut(KeyCode.Keypad0), new ConfigDescription("If Auto-Retry Delay is 0, use this key to retry network connection", null, new ConfigurationManagerAttributes { IsAdvanced = true }));
             ConfigNetworkAutoRetry = Config.Bind("Network", "Enable Network Retry", true, new ConfigDescription("Retry failed network connections instead of throwing an error and stopping game operation.", null, new ConfigurationManagerAttributes { IsAdvanced = true }));
@@ -247,6 +251,7 @@ namespace SwordArtOffline {
             Config15093Port = Config.Bind("Real Hardware", "837-15093-06 LED Board Port", 0, "The Port for a SEGA 837-15093-06 LED board (0 to disable, for LED mappings see readme)");
             ConfigLEDHostAddr = Config.Bind("Real Hardware", "LED Host Address", 2, new ConfigDescription("LED Board host address", null, new ConfigurationManagerAttributes { IsAdvanced = true }));
             ConfigLEDBoardAddr = Config.Bind("Real Hardware", "LED Board Address", 1, new ConfigDescription("LED Board own address", null, new ConfigurationManagerAttributes { IsAdvanced = true }));
+            ConfigCameraLEDToAux1 = Config.Bind("Real Hardware", "LED Camera Lamp to M06 AUX", 0, "Map the camera scan LED to the AUX1 output of a MONKEY06 emulator. 0 to disable, any other number for LEDs to use.");
 
             string exe = Environment.CurrentDirectory.Split('\\').Last();
             Logger.LogDebug("Game = " + exe);
@@ -330,7 +335,7 @@ namespace SwordArtOffline {
             }
             if (Config15093Port.Value > 0) {
                 Log.LogInfo("Connecting to LED");
-                Led = new LED_837_15093_06(Config15093Port.Value, (byte)ConfigLEDHostAddr.Value, (byte)ConfigLEDBoardAddr.Value);
+                Led = new LED_MONKEY06(Config15093Port.Value, (byte)ConfigLEDHostAddr.Value, (byte)ConfigLEDBoardAddr.Value);
                 DeviceStatus ret = Led.Connect();
                 LedConnected = ret == DeviceStatus.OK;
                 if (LedConnected) {

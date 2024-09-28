@@ -308,6 +308,11 @@ namespace SwordArtOffline.Patches.Game {
             GameConnect.setTimeOutTime(20);
             // this needs to be initialized explicitely otherwise the terminal dies
             BnamPeripheral.GetInstance().boardName = "NBGI.SwordArtOffline I/O Emu";
+
+
+            for (int i = 0; i < 79; i++) {
+                CommonUI_StorageBoxDataManager.instance.saleLogs.Add(new SelectTubLogData());
+            }
         }
 
         // reimplement this entire thing
