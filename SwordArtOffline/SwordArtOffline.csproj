@@ -21,52 +21,61 @@
   </ItemGroup>
   
   <ItemGroup>
+    <Reference Include="0Harmony">
+      <HintPath>..\..\..\SDVX\sao\game\BepInEx\core\0Harmony.dll</HintPath>
+    </Reference>
     <Reference Include="Artdink">
-      <HintPath>L:\SDVX\sao\game\link_Data\Managed\Artdink.dll</HintPath>
+      <HintPath>G:\SDVX\sao\game\link_Data\Managed\Artdink.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Assembly-CSharp">
-      <HintPath>L:\SDVX\sao\game\link_Data\Managed\Assembly-CSharp-nstrip.dll</HintPath>
+      <HintPath>G:\SDVX\sao\game\link_Data\Managed\Assembly-CSharp-nstrip.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Assembly-CSharp-firstpass">
-      <HintPath>L:\SDVX\sao\notice\NoticeScreen_Data\Managed\Assembly-CSharp-firstpass.dll</HintPath>
+      <HintPath>G:\SDVX\sao\notice\NoticeScreen_Data\Managed\Assembly-CSharp-firstpass.dll</HintPath>
       <Aliases>AssemblyNotice</Aliases>
       <Private>False</Private>
     </Reference>
-    <Reference Include="eMoneyUILink">
-      <HintPath>..\..\APMCoreFixes\eMoneyUILink\bin\Debug\eMoneyUILink.dll</HintPath>
+    <Reference Include="BepInEx">
+      <HintPath>..\..\..\SDVX\sao\game\BepInEx\core\BepInEx.dll</HintPath>
+    </Reference>
+    <Reference Include="BepInEx.Harmony">
+      <HintPath>..\..\..\SDVX\sao\game\BepInEx\core\BepInEx.Harmony.dll</HintPath>
+    </Reference>
+    <Reference Include="BepInEx.Preloader">
+      <HintPath>..\..\..\SDVX\sao\game\BepInEx\core\BepInEx.Preloader.dll</HintPath>
     </Reference>
     <Reference Include="External.ADX">
-      <HintPath>L:\SDVX\sao\game\link_Data\Managed\External.ADX.dll</HintPath>
+      <HintPath>G:\SDVX\sao\game\link_Data\Managed\External.ADX.dll</HintPath>
     </Reference>
     <Reference Include="GssSite">
-      <HintPath>L:\SDVX\sao\game\link_Data\Managed\GssSite-nstrip.dll</HintPath>
+      <HintPath>G:\SDVX\sao\game\link_Data\Managed\GssSite-nstrip.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Photon3Unity3D">
-      <HintPath>L:\SDVX\sao\game\link_Data\Managed\Photon3Unity3D.dll</HintPath>
+      <HintPath>G:\SDVX\sao\game\link_Data\Managed\Photon3Unity3D.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="SEGA835Lib">
-      <HintPath>..\..\835Lib\SEGA835Lib\bin\Debug\net35\SEGA835Lib.dll</HintPath>
+      <HintPath>G:\Code\SEGA835Lib\SEGA835Lib\bin\Debug\net35\SEGA835Lib.dll</HintPath>
     </Reference>
     <Reference Include="TextMeshPro-2017.3-1.0.56-Runtime">
-      <HintPath>L:\SDVX\sao\game\link_Data\Managed\TextMeshPro-2017.3-1.0.56-Runtime.dll</HintPath>
+      <HintPath>G:\SDVX\sao\game\link_Data\Managed\TextMeshPro-2017.3-1.0.56-Runtime.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="UnityEngine.InputModule">
-      <HintPath>L:\SDVX\sao\game\link_Data\Managed\UnityEngine.InputModule.dll</HintPath>
+      <HintPath>G:\SDVX\sao\game\link_Data\Managed\UnityEngine.InputModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="UnityEngine.UI">
-      <HintPath>L:\SDVX\sao\game\link_Data\Managed\UnityEngine.UI.dll</HintPath>
+      <HintPath>G:\SDVX\sao\game\link_Data\Managed\UnityEngine.UI.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>
   
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="copy /Y bin\Debug\net35\SwordArtOffline.dll L:\SDVX\sao\game\BepInEx\plugins\SwordArtOffline\&#xD;&#xA;copy /Y bin\Debug\net35\Sega835Lib.dll L:\SDVX\sao\game\BepInEx\plugins\SwordArtOffline\&#xD;&#xA;copy /Y bin\Debug\net35\SwordArtOffline.dll L:\SDVX\sao_releaze\game\BepInEx\plugins\SwordArtOffline\&#xD;&#xA;copy /Y bin\Debug\net35\Sega835Lib.dll L:\SDVX\sao_releaze\game\BepInEx\plugins\SwordArtOffline\&#xD;&#xA;copy /Y bin\Debug\net35\SwordArtOffline.dll L:\SDVX\sao\notice\BepInEx\plugins\&#xD;&#xA;copy /Y bin\Debug\net35\SwordArtOffline.dll L:\SDVX\sao\testmode\BepInEx\plugins\" />
+    <Exec Command="copy /Y bin\Debug\net35\SwordArtOffline.dll G:\SDVX\sao\game\BepInEx\plugins\SwordArtOffline\&#xD;&#xA;copy /Y bin\Debug\net35\Sega835Lib.dll G:\SDVX\sao\game\BepInEx\plugins\SwordArtOffline\&#xD;&#xA;copy /Y bin\Debug\net35\SwordArtOffline.dll G:\SDVX\sao_releaze\game\BepInEx\plugins\SwordArtOffline\&#xD;&#xA;copy /Y bin\Debug\net35\Sega835Lib.dll G:\SDVX\sao_releaze\game\BepInEx\plugins\SwordArtOffline\&#xD;&#xA;copy /Y bin\Debug\net35\SwordArtOffline.dll G:\SDVX\sao\notice\BepInEx\plugins\&#xD;&#xA;copy /Y bin\Debug\net35\SwordArtOffline.dll G:\SDVX\sao\testmode\BepInEx\plugins\" />
   </Target>
   
   <ItemGroup>

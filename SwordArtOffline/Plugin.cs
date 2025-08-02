@@ -25,6 +25,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Threading;
+using Haruka.Arcade.SEGA835Lib;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -32,9 +33,13 @@ namespace SwordArtOffline {
 
     extern alias AssemblyNotice;
 
-    [BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
+    [BepInPlugin(Plugin.PLUGIN_GUID, Plugin.PLUGIN_NAME, Plugin.PLUGIN_VERSION)]
     [BepInDependency("eu.haruka.gmg.apm.emoneyuilink", BepInDependency.DependencyFlags.SoftDependency)]
     public class Plugin : BaseUnityPlugin {
+        
+        public const String PLUGIN_GUID = "SwordArtOffline";
+        public const String PLUGIN_NAME = "SwordArtOffline";
+        public const String PLUGIN_VERSION = "1.2.2";
 
         private const String SEC_BUTTONS = "Keybindings";
 
@@ -158,7 +163,7 @@ namespace SwordArtOffline {
 
             instance = this;
 
-            Logger.LogInfo($"{PluginInfo.PLUGIN_GUID} is loading...");
+            Logger.LogInfo($"{Plugin.PLUGIN_GUID} is loading...");
 
             Log = Logger;
 
@@ -306,6 +311,7 @@ namespace SwordArtOffline {
                 Directory.CreateDirectory(ConfigPrinterDirectory.Value);
             }
 
+            Log.LogInfo("Sega835Lib Version: " + VersionInfo.LIB_VERSION);
             Haruka.Arcade.SEGA835Lib.Debugging.Log.Mute = true;
             Haruka.Arcade.SEGA835Lib.Debugging.Log.LogMessageWritten += Log_LogMessageWritten;
             if (ConfigAimeReaderPort.Value > 0) {
@@ -345,19 +351,14 @@ namespace SwordArtOffline {
                 }
             }
 
-            BaseUnityPlugin emoneyuilink = Chainloader.Plugins.Find(p => p.Info.Metadata.GUID == "eu.haruka.gmg.apm.emoneyuilink");
-            if (emoneyuilink != null) {
-                EMoneyUILinkIntegration.Initalize(Aime);
-            } else {
-                Plugin.Log.LogWarning("EMoneyUI integration not found");
-            }
+
 
             if (!WantsBootSatellite) {
                 LoadAMPFCoin();
             }
 
 
-            Logger.LogInfo($"{PluginInfo.PLUGIN_GUID} is loaded!");
+            Logger.LogInfo($"{Plugin.PLUGIN_GUID} is loaded!");
         }
 
         private void Io4Polling() {
@@ -384,7 +385,7 @@ namespace SwordArtOffline {
         private void SceneManager_activeSceneChanged(Scene arg0, Scene arg1) {
             Logger.LogDebug(arg0.name + " -> " + arg1.name);
             if (arg1.name == "SubScene_AttractPv_Parent") {
-                Logger.LogMessage("SwordArtOffline " + PluginInfo.PLUGIN_VERSION + " mod for SAO Arcade: Deep Explorer - 2024 Haruka");
+                Logger.LogMessage("SwordArtOffline " + Plugin.PLUGIN_VERSION + " mod for SAO Arcade: Deep Explorer - 2024-2025 Haruka");
                 Logger.LogMessage("part of the GenericMusicGames preservation project");
                 if (Plugin.ConfigShowMenuKeybinds.Value) {
                     Logger.LogMessage("Press F1 to open the mod settings menu.");

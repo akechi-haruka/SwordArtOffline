@@ -1,5 +1,5 @@
 Sword Art Online Core Fixes (Sword Art Offline)
-(c) 2024 Haruka.
+(c) 2024-2025 Haruka.
 All files in this repository, including code and configurations are licensed under the Server Side Public License.
 
 Sword Art Online name, code, images and all other related assets Copyright (C) Bandai Namco.

@@ -160,7 +160,6 @@ namespace SwordArtOffline.Patches.Game {
             Plugin.Log.LogDebug("BNGRW.AimeDetectCard");
             __result = true;
             if (Plugin.Aime != null) {
-                EMoneyUILinkIntegration.SetCardReaderBlocked(true);
                 Plugin.Aime.LEDSetColor(255, 255, 255);
                 Plugin.Aime.RadioOn(RadioOnType.Both);
                 __result = Plugin.Aime.StartPolling() == Haruka.Arcade.SEGA835Lib.Devices.DeviceStatus.OK;
@@ -180,7 +179,6 @@ namespace SwordArtOffline.Patches.Game {
             Plugin.Log.LogDebug("BNGRW.AimeCancelTask");
             __result = true;
             if (Plugin.Aime != null) {
-                EMoneyUILinkIntegration.SetCardReaderBlocked(false);
                 __result = Plugin.Aime.StopPolling() == Haruka.Arcade.SEGA835Lib.Devices.DeviceStatus.OK;
                 Plugin.Aime.LEDSetColor(0, 0, 0);
                 Plugin.Aime.ClearCard();
