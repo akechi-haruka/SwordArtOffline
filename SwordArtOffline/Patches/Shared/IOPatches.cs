@@ -284,6 +284,16 @@ namespace SwordArtOffline.Patches.Shared {
         internal static void ResetCharacterPosition() {
             CurrentCharacter = 1;
         }
+        
+        [HarmonyPrefix, HarmonyPatch(typeof(Input), "touchSupported", MethodType.Getter)]
+        static bool touchSupported(ref bool __result) {
+            if (Plugin.ConfigFakeTouchscreen.Value) {
+                __result = true;
+                return false;
+            }
+
+            return true;
+        }
 
     }
 }
