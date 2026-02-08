@@ -43,6 +43,10 @@ namespace SwordArtOffline.Patches.Game {
 
         [HarmonyPrefix, HarmonyPatch(typeof(ErrorCheckManager), "OccurredError")]
         static bool OccurredError(SystemErrorCode err, bool log = true) {
+            // wrong LAN adapter in use but user can't/won't change it
+            if (err == SystemErrorCode.NET_DISCONNECT && Plugin.ConfigIgnoreError55.Value) {
+                return false;
+            }
             // hardcoded ip addresses, sigh
             if (err == SystemErrorCode.NET_DIFF_ROUTER) {
                 return false;
@@ -135,7 +139,9 @@ namespace SwordArtOffline.Patches.Game {
             Plugin.Log.LogDebug("ALLNET NOT AUTHED YET = " + !GameManager.s_AllNetAuth);
             Plugin.Log.LogDebug("AMPF UPDATE? = " + GameManager.Instance.m_bnAMPUpdate);
             Plugin.Log.LogDebug("AMPF KEYCHIP = " + bnAMPF.USBDongleGetSerialNumber_wrapped());
-
+            network_info networkInfo = GameManager.Instance.GetNetworkInfo();
+            Plugin.Log.LogDebug("CABLE STATE = " + networkInfo.state_cable);
+            Plugin.Log.LogDebug("LOCAL IP = " + networkInfo.ip);
         }
 
 

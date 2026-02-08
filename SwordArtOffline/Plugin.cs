@@ -39,7 +39,7 @@ namespace SwordArtOffline {
         
         public const String PLUGIN_GUID = "SwordArtOffline";
         public const String PLUGIN_NAME = "SwordArtOffline";
-        public const String PLUGIN_VERSION = "1.2.3";
+        public const String PLUGIN_VERSION = "1.2.4";
 
         private const String SEC_BUTTONS = "Keybindings";
 
@@ -124,6 +124,7 @@ namespace SwordArtOffline {
         public static ConfigEntry<bool> ConfigMassSell;
         public static ConfigEntry<int> ConfigCameraLEDToAux1;
         public static ConfigEntry<bool> ConfigFakeTouchscreen;
+        public static ConfigEntry<bool> ConfigIgnoreError55;
 
         private static String keychip;
         private static IntPtr keychipA = IntPtr.Zero;
@@ -205,6 +206,7 @@ namespace SwordArtOffline {
             ConfigNetworkEncryption = Config.Bind("Network", "Encryption", false, "Enable network encryption again if your server requires it");
             ConfigNetworkMatchingIP = Config.Bind("Network", "Matching Server IP", "", "Set the matching server IP. If the server supports exdata, this setting is not needed.");
             ConfigPhotonLogging = Config.Bind("Network", "Matching Server Logging", false, new ConfigDescription("Photon Server packet logging, only useful for debugging issues with the photon emulator", null, new ConfigurationManagerAttributes { IsAdvanced = true }));
+            ConfigIgnoreError55 = Config.Bind("Network", "Ignore Error 5-5", false, new ConfigDescription("Hide error 5-5 (wrong network adapter - network adapter disconnected)", null, new ConfigurationManagerAttributes { IsAdvanced = true }));
             ConfigMoveToFrontOnStart = Config.Bind("General", "Move to front on start", true, "Moves the game window to the foreground on startup");
             ConfigShowCursor = Config.Bind("General", "Show Mouse Cursor", true, "Shows the mouse cursor. Disable if using touchscreen.");
             ConfigFakeTouchscreen = Config.Bind("General", "Fake Touchscreen", true, "Passes touchscreen checks when enabled, disable to use a real touchscreen.");
